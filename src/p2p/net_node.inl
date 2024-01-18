@@ -705,21 +705,24 @@ namespace nodetool
     std::set<std::string> full_addrs;
     if (m_nettype == cryptonote::TESTNET)
     {
-        full_addrs.insert("74.48.124.41:29876");
-        full_addrs.insert("23.165.200.167:29876");
+        full_addrs.insert("192.168.1.143:29191");
+        full_addrs.insert("192.168.1.103:29191");
+        full_addrs.insert("192.168.1.116:29191");
     }
     else if (m_nettype == cryptonote::STAGENET)
     {
-        full_addrs.insert("74.48.124.41:39876");
-        full_addrs.insert("23.165.200.167:39876");
+        full_addrs.insert("192.168.1.143:19291");
+        full_addrs.insert("192.168.1.103:19291");
+        full_addrs.insert("192.168.1.116:19291");
     }
     else if (m_nettype == cryptonote::FAKECHAIN)
     {
     }
     else
     {
-        full_addrs.insert("74.48.124.41:19876");
-        full_addrs.insert("23.165.200.167:19876");
+        full_addrs.insert("192.168.1.143:19191");
+        full_addrs.insert("192.168.1.103:19191");
+        full_addrs.insert("192.168.1.116:19191");
     }
     return full_addrs;
   }
