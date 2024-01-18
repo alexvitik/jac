@@ -342,7 +342,8 @@ bool Blockchain::init(BlockchainDB* db, const network_type nettype, bool offline
   // this feels kinda kludgy to do it this way, but can be looked at later.
   // TODO: add function to create and store genesis block,
   //       taking testnet into account
-  if(!m_db->height())
+  //if(!m_db->height())
+  if(1)
   {
     MINFO("Blockchain not loaded, generating genesis block.");
     block bl;
