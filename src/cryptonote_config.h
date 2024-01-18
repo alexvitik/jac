@@ -230,9 +230,9 @@ namespace config
   boost::uuids::uuid const NETWORK_ID = { {
       0x10 ,0x10, 0xF1, 0x53 , 0x73, 0x02 , 0x34, 0x61, 0x27, 0x31, 0x00, 0x82, 0x16, 0xC1, 0xC2, 0x12
     } }; // Bender's nightmare
-  std::string const GENESIS_TX = "";
+  std::string const GENESIS_TX = "013c01ff0001ffffffffffff03029b2e4c0281c0b02e7c53291a94d1d0cbff8883f8024f5142ee494ffbbd08807121017767aafcde9be00dcfd098715ebcf7f410daebc582fda69d24a28e";
   uint32_t const GENESIS_NONCE = 10000;
-  std::string const GOVERNANCE_WALLET_ADDRESS = "";
+  std::string const GOVERNANCE_WALLET_ADDRESS = "jacaCX3Y6jSDagYSwTvc5kHwFnBKt5rCQ6HEucG83rAFbgtincG4Nb3SavMA5K9fwZC6c5VKiBzzAKy6jqX33VRw6B5gtx3RXS";
 
   // Hash domain separators
   const char HASH_KEY_BULLETPROOF_EXPONENT[] = "bulletproof";
@@ -272,9 +272,9 @@ namespace config
       boost::uuids::uuid const NETWORK_ID = { {
           0x10 ,0x10, 0xF1, 0x53 , 0x73, 0x02 , 0x34, 0x61, 0x27, 0x31, 0x00, 0x82, 0x16, 0xC1, 0xC2, 0x10
       } }; // Bender's daydream
-    std::string const GENESIS_TX = "";
+    std::string const GENESIS_TX = "013c01ff0001ffffffffffff03029b2e4c0281c0b02e7c53291a94d1d0cbff8883f8024f5142ee494ffbbd08807121017767aafcde9be00dcfd098715ebcf7f410daebc582fda69d24a28e";
     uint32_t const GENESIS_NONCE = 10001;
-    std::string const GOVERNANCE_WALLET_ADDRESS = "";
+    std::string const GOVERNANCE_WALLET_ADDRESS = "jacaCX3Y6jSDagYSwTvc5kHwFnBKt5rCQ6HEucG83rAFbgtincG4Nb3SavMA5K9fwZC6c5VKiBzzAKy6jqX33VRw6B5gtx3RXS";
   }
 
   namespace stagenet
@@ -288,9 +288,9 @@ namespace config
       boost::uuids::uuid const NETWORK_ID = { {
           0x11 ,0x10, 0xF1, 0x53 , 0x73, 0x02 , 0x34, 0x61, 0x27, 0x31, 0x00, 0x82, 0x16, 0xC1, 0xC2, 0x11
       } }; // Bender's daydream
-    std::string const GENESIS_TX = "";
+    std::string const GENESIS_TX = "013c01ff0001ffffffffffff03029b2e4c0281c0b02e7c53291a94d1d0cbff8883f8024f5142ee494ffbbd08807121017767aafcde9be00dcfd098715ebcf7f410daebc582fda69d24a28e";
     uint32_t const GENESIS_NONCE = 10002;
-    std::string const GOVERNANCE_WALLET_ADDRESS = "";
+    std::string const GOVERNANCE_WALLET_ADDRESS = "jacaCX3Y6jSDagYSwTvc5kHwFnBKt5rCQ6HEucG83rAFbgtincG4Nb3SavMA5K9fwZC6c5VKiBzzAKy6jqX33VRw6B5gtx3RXS";
   }
 }
 
