@@ -504,8 +504,8 @@ namespace cryptonote
       if (boost::filesystem::exists(old_files / "blockchain.bin"))
       {
         MWARNING("Found old-style blockchain.bin in " << old_files.string());
-        MWARNING("Tabo now uses a new format. You can either remove blockchain.bin to start syncing");
-        MWARNING("the blockchain anew, or use tabo-blockchain-export and tabo-blockchain-import to");
+        MWARNING("JAC now uses a new format. You can either remove blockchain.bin to start syncing");
+        MWARNING("the blockchain anew, or use jac-blockchain-export and jac-blockchain-import to");
         MWARNING("convert your existing blockchain.bin to the new format. See README.md for instructions.");
         return false;
       }
@@ -1861,7 +1861,7 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   bool core::check_updates()
   {
-    static const char software[] = "tabo";
+    static const char software[] = "jac";
 #ifdef BUILD_TAG
     static const char buildtag[] = BOOST_PP_STRINGIZE(BUILD_TAG);
     static const char subdir[] = "cli"; // because it can never be simple
