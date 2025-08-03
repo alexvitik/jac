@@ -83,7 +83,7 @@ namespace
   const command_line::arg_descriptor<bool> arg_prompt_for_password = {"prompt-for-password", "Prompts for password when not provided", false};
   const command_line::arg_descriptor<bool> arg_no_initial_sync = {"no-initial-sync", "Skips the initial sync before listening for connections", false};
 
-  constexpr const char default_rpc_username[] = "tabo";
+  constexpr const char default_rpc_username[] = "jac";
 
   boost::optional<tools::password_container> password_prompter(const char *prompt, bool verify)
   {
@@ -245,7 +245,7 @@ namespace tools
           string_encoding::base64_encode(rand_128bit.data(), rand_128bit.size())
         );
 
-        std::string temp = "tabo-wallet-rpc." + bind_port + ".login";
+        std::string temp = "jac-wallet-rpc." + bind_port + ".login";
         rpc_login_file = tools::private_file::create(temp);
         if (!rpc_login_file.handle())
         {
@@ -296,7 +296,7 @@ namespace tools
     tools::wallet2::BackgroundMiningSetupType setup = m_wallet->setup_background_mining();
     if (setup == tools::wallet2::BackgroundMiningNo)
     {
-      MLOG_RED(el::Level::Warning, "Background mining not enabled. Run \"set setup-background-mining 1\" in tabo-wallet-cli to change.");
+      MLOG_RED(el::Level::Warning, "Background mining not enabled. Run \"set setup-background-mining 1\" in jac-wallet-cli to change.");
       return;
     }
 
@@ -321,8 +321,8 @@ namespace tools
     {
       MINFO("The daemon is not set up to background mine.");
       MINFO("With background mining enabled, the daemon will mine when idle and not on battery.");
-      MINFO("Enabling this supports the network you are using, and makes you eligible for receiving new tabo");
-      MINFO("Set setup-background-mining to 1 in tabo-wallet-cli to change.");
+      MINFO("Enabling this supports the network you are using, and makes you eligible for receiving new jac");
+      MINFO("Set setup-background-mining to 1 in jac-wallet-cli to change.");
       return;
     }
 
@@ -892,7 +892,7 @@ namespace tools
           }
           if (addresses.empty())
           {
-            er.message = std::string("No Tabo address found at ") + url;
+            er.message = std::string("No JAC address found at ") + url;
             return {};
           }
           return addresses[0];
@@ -2194,7 +2194,7 @@ namespace tools
         }
         if (addresses.empty())
         {
-          er.message = std::string("No Tabo address found at ") + url;
+          er.message = std::string("No JAC address found at ") + url;
           return {};
         }
         return addresses[0];
@@ -3012,7 +3012,7 @@ namespace tools
         }
         if (addresses.empty())
         {
-          er.message = std::string("No Tabo address found at ") + url;
+          er.message = std::string("No JAC address found at ") + url;
           return {};
         }
         return addresses[0];
@@ -3066,7 +3066,7 @@ namespace tools
           }
           if (addresses.empty())
           {
-            er.message = std::string("No Tabo address found at ") + url;
+            er.message = std::string("No JAC address found at ") + url;
             return {};
           }
           return addresses[0];
@@ -4374,7 +4374,7 @@ namespace tools
             }
             if (addresses.empty())
             {
-              er.message = std::string("No Tabo address found at ") + url;
+              er.message = std::string("No JAC address found at ") + url;
               return {};
             }
             address = addresses[0];
@@ -4750,12 +4750,12 @@ int main(int argc, char** argv) {
   bool should_terminate = false;
   std::tie(vm, should_terminate) = wallet_args::main(
     argc, argv,
-    "tabo-wallet-rpc [--wallet-file=<file>|--generate-from-json=<file>|--wallet-dir=<directory>] [--rpc-bind-port=<port>]",
-    tools::wallet_rpc_server::tr("This is the RPC tabo wallet. It needs to connect to a tabo\ndaemon to work correctly."),
+    "jac-wallet-rpc [--wallet-file=<file>|--generate-from-json=<file>|--wallet-dir=<directory>] [--rpc-bind-port=<port>]",
+    tools::wallet_rpc_server::tr("This is the RPC tabo wallet. It needs to connect to a jac\ndaemon to work correctly."),
     desc_params,
     po::positional_options_description(),
     [](const std::string &s, bool emphasis){ tools::scoped_message_writer(emphasis ? epee::console_color_white : epee::console_color_default, true) << s; },
-    "tabo-wallet-rpc.log",
+    "jac-wallet-rpc.log",
     true
   );
   if (!vm)
