@@ -960,7 +960,7 @@ static void open_db(const std::string &filename, MDB_env **env, MDB_txn **txn, M
   dbr = mdb_env_set_maxdbs(*env, 1);
   CHECK_AND_ASSERT_THROW_MES(!dbr, "Failed to set max env dbs: " + std::string(mdb_strerror(dbr)));
   const std::string actual_filename = filename;
-  MINFO("Opening tabo blockchain at " << actual_filename);
+  MINFO("Opening jac blockchain at " << actual_filename);
   dbr = mdb_env_open(*env, actual_filename.c_str(), flags, 0664);
   CHECK_AND_ASSERT_THROW_MES(!dbr, "Failed to open rings database file '"
       + actual_filename + "': " + std::string(mdb_strerror(dbr)));
@@ -1220,12 +1220,12 @@ int main(int argc, char* argv[])
 
   if (command_line::get_arg(vm, command_line::arg_help))
   {
-    std::cout << "Tabo '" << MONERO_RELEASE_NAME << "' (v" << MONERO_VERSION_FULL << ")" << ENDL << ENDL;
+    std::cout << "JAC '" << MONERO_RELEASE_NAME << "' (v" << MONERO_VERSION_FULL << ")" << ENDL << ENDL;
     std::cout << desc_options << std::endl;
     return 1;
   }
 
-  mlog_configure(mlog_get_default_log_path("tabo-blockchain-mark-spent-outputs.log"), true);
+  mlog_configure(mlog_get_default_log_path("jac-blockchain-mark-spent-outputs.log"), true);
   if (!command_line::is_arg_defaulted(vm, arg_log_level))
     mlog_set_log(command_line::get_arg(vm, arg_log_level).c_str());
   else
