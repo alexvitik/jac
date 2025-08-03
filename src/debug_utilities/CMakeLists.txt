@@ -89,5 +89,5 @@ target_link_libraries(dns_checks
 
 set_property(TARGET dns_checks
 	PROPERTY
-	OUTPUT_NAME "tabo-utils-dns-checks")
+	OUTPUT_NAME "jac-utils-dns-checks")
 
