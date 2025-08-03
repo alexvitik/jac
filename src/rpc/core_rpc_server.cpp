@@ -3094,7 +3094,7 @@ namespace cryptonote
       return true;
     }
 
-    static const char software[] = "tabo";
+    static const char software[] = "jac";
 #ifdef BUILD_TAG
     static const char buildtag[] = BOOST_PP_STRINGIZE(BUILD_TAG);
     static const char subdir[] = "cli";
