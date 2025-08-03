@@ -1137,15 +1137,15 @@ namespace cryptonote
     switch (decimal_point)
     {
       case 12:
-        return "tabo";
+        return "jac";
       case 9:
-        return "millitabo";
+        return "millijac";
       case 6:
-        return "microtabo";
+        return "microjac";
       case 3:
-        return "nanotabo";
+        return "nanojac";
       case 0:
-        return "picotabo";
+        return "picojac";
       default:
         ASSERT_MES_AND_THROW("Invalid decimal point specification: " << decimal_point);
     }
