@@ -4038,7 +4038,7 @@ void wallet2::refresh(bool trusted_daemon, uint64_t start_height, uint64_t & blo
       if (!last)
         tpool.submit(&waiter, [&]{pull_and_parse_next_blocks(first, try_incremental, start_height, next_blocks_start_height, short_chain_history, blocks, parsed_blocks, next_blocks, next_parsed_blocks, last, error, exception);});
 
-      if (!first)
+      if (!blocks.empty())
       {
         try
         {
@@ -4151,22 +4151,6 @@ void wallet2::refresh(bool trusted_daemon, uint64_t start_height, uint64_t & blo
       }
     }
   }
-  // ...
-  // After the while loop finishes
-  // Process any remaining blocks that were fetched in the last iteration
-  if (!blocks.empty()) {
-    MINFO("Processing final batch of blocks");
-    try {
-      process_parsed_blocks(blocks_start_height, blocks, parsed_blocks, added_blocks, output_tracker_cache.get());
-      blocks_fetched += added_blocks;
-    } catch (const std::exception &e) {
-      MERROR("Error parsing final blocks: " << e.what());
-      // Handle error as needed
-    }
-  }
-  // ...
-
-	
   if(last_tx_hash_id != (m_transfers.size() ? m_transfers.back().m_txid : null_hash))
     received_money = true;
 
