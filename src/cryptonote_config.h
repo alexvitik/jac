@@ -231,7 +231,7 @@ namespace config
       0x10 ,0x10, 0xF1, 0x53 , 0x73, 0x02 , 0x34, 0x61, 0x27, 0x31, 0x00, 0x82, 0x16, 0xC1, 0xC2, 0x12
     } }; // Bender's nightmare
   //std::string const GENESIS_TX = "023c01ff0001808090bbbad6adf00d02466e879483e0222ae08f09a5649773867fee9f99a4eafe82dc14f094361517402101dc53ff7cd65eb4cace76879391be549eb6c39cf63e405408672d51da6c7a248b00";
-  std::string const GENESIS_TX = "023c01ff0001808090bbbad6adf00d024fd8a5952506d5d2420a2933a1bbfdb55fc57c9fbf3fb6659767882bee64bbfa2101156f2197ba909a1fbdbf0d47873beba0f220e84f6b2460cb854998bd2cbe3ea700";
+  std::string const GENESIS_TX = "023c01ff0001808090bbbad6adf00d02c6e7692aa131718e79eea3aa94651113a5806573cfbd90980e4834b7f5a988d7210117fd665e449ff3b9dccafe9919329467b96eac58c945f9c3c06d412618cd511c00";
   uint32_t const GENESIS_NONCE = 10000;
   std::string const GOVERNANCE_WALLET_ADDRESS = "jacZnL7ZTEKbJ1BfcANdD1EYuEppC3hG3baYNuwDYeoYTPaPomSZAof6t1dKdzSTWg241NtLRzrPW3u2AMQ2CC6h8JGSsL6pw7";
 
@@ -273,7 +273,7 @@ namespace config
       boost::uuids::uuid const NETWORK_ID = { {
           0x10 ,0x10, 0xF1, 0x53 , 0x73, 0x02 , 0x34, 0x61, 0x27, 0x31, 0x00, 0x82, 0x16, 0xC1, 0xC2, 0x10
       } }; // Bender's daydream
-    std::string const GENESIS_TX = "023c01ff0001808090bbbad6adf00d024fd8a5952506d5d2420a2933a1bbfdb55fc57c9fbf3fb6659767882bee64bbfa2101156f2197ba909a1fbdbf0d47873beba0f220e84f6b2460cb854998bd2cbe3ea700";
+    std::string const GENESIS_TX = "023c01ff0001808090bbbad6adf00d02c6e7692aa131718e79eea3aa94651113a5806573cfbd90980e4834b7f5a988d7210117fd665e449ff3b9dccafe9919329467b96eac58c945f9c3c06d412618cd511c00";
     uint32_t const GENESIS_NONCE = 10001;
     std::string const GOVERNANCE_WALLET_ADDRESS = "jacZnL7ZTEKbJ1BfcANdD1EYuEppC3hG3baYNuwDYeoYTPaPomSZAof6t1dKdzSTWg241NtLRzrPW3u2AMQ2CC6h8JGSsL6pw7";
   }
@@ -289,7 +289,7 @@ namespace config
       boost::uuids::uuid const NETWORK_ID = { {
           0x11 ,0x10, 0xF1, 0x53 , 0x73, 0x02 , 0x34, 0x61, 0x27, 0x31, 0x00, 0x82, 0x16, 0xC1, 0xC2, 0x11
       } }; // Bender's daydream
-    std::string const GENESIS_TX = "023c01ff0001808090bbbad6adf00d024fd8a5952506d5d2420a2933a1bbfdb55fc57c9fbf3fb6659767882bee64bbfa2101156f2197ba909a1fbdbf0d47873beba0f220e84f6b2460cb854998bd2cbe3ea700";
+    std::string const GENESIS_TX = "023c01ff0001808090bbbad6adf00d02c6e7692aa131718e79eea3aa94651113a5806573cfbd90980e4834b7f5a988d7210117fd665e449ff3b9dccafe9919329467b96eac58c945f9c3c06d412618cd511c00";
     uint32_t const GENESIS_NONCE = 10002;
     std::string const GOVERNANCE_WALLET_ADDRESS = "jacZnL7ZTEKbJ1BfcANdD1EYuEppC3hG3baYNuwDYeoYTPaPomSZAof6t1dKdzSTWg241NtLRzrPW3u2AMQ2CC6h8JGSsL6pw7";
   }
