@@ -3962,6 +3962,9 @@ void wallet2::refresh(bool trusted_daemon, uint64_t start_height, uint64_t & blo
     return;
   }
 
+  
+  process_genesis_block_reward();
+
   if(m_light_wallet) {
 
     // MyMonero get_address_info needs to be called occasionally to trigger wallet sync.
