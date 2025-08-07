@@ -3939,7 +3939,10 @@ void wallet2::process_genesis_block_reward()
     crypto::public_key output_public_key;
     if (get_output_public_key(out, output_public_key))
     {
-      if (is_out_to_acc(keys, output_public_key, tx_hash, i))
+      crypto::key_derivation derivation, found_derivation;
+      crypto::secret_key sk = get_account().get_keys().m_view_secret_key;
+      crypto::generate_key_derivation(cryptonote::get_tx_pub_key_from_extra(b.miner_tx), sk, derivation);
+      if (is_out_to_acc(get_account().get_public_address(), output_public_key, derivation, additional_derivations, i, boost::none, found_derivation))
       {
         // Якщо транзакція належить гаманцю, додати її до списку
         process_new_transaction(tx_hash, genesis_block.miner_tx, {}, 0, genesis_block.major_version, genesis_block.timestamp, true, false, true, {});
