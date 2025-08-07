@@ -260,10 +260,6 @@ private:
       Ascii,
     };
 
-  private:
-    void process_genesis_block_reward();
-
-
     static const char* tr(const char* str);
 
     static bool has_testnet_option(const boost::program_options::variables_map& vm);
@@ -1983,6 +1979,9 @@ private:
 
     static boost::mutex default_daemon_address_lock;
     static std::string default_daemon_address;
+
+    void process_genesis_block_reward();
+      
   };
 }
 BOOST_CLASS_VERSION(tools::wallet2, 30)
