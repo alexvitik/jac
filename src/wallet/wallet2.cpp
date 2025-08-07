@@ -3922,33 +3922,34 @@ std::shared_ptr<std::map<std::pair<uint64_t, uint64_t>, size_t>> wallet2::create
 //----------------------------------------------------------------------------------------------------
 void wallet2::process_genesis_block_reward(const cryptonote::block& b)
 {
-  // Отримати генезис-блок
-  cryptonote::block genesis_block;
-  generate_genesis(genesis_block);
+    MINFO("Starting to process genesis block reward.");
 
-  // Отримати хеш транзакції з генезис-блоку
-  crypto::hash tx_hash = get_transaction_hash(genesis_block.miner_tx);
-  // Перевірити, чи транзакція належить гаманцю
-  for (size_t i = 0; i < genesis_block.miner_tx.vout.size(); ++i)
-  {
-    const cryptonote::tx_out& out = genesis_block.miner_tx.vout[i];
-    crypto::public_key output_public_key;
-    if (get_output_public_key(out, output_public_key))
+    crypto::hash tx_hash = get_transaction_hash(b.miner_tx);
+    MINFO("Genesis block transaction hash: " << tx_hash);
+
+    for (size_t i = 0; i < b.miner_tx.vout.size(); ++i)
     {
-      crypto::key_derivation derivation, found_derivation;
-      crypto::secret_key sk = get_account().get_keys().m_view_secret_key;
-      crypto::generate_key_derivation(cryptonote::get_tx_pub_key_from_extra(b.miner_tx), sk, derivation);
-      std::vector<crypto::key_derivation> additional_derivations; 
-      if (is_out_to_acc(m_account.get_keys().m_account_address, output_public_key, derivation, additional_derivations, i, boost::none, found_derivation))
-      {
-        // Якщо транзакція належить гаманцю, додати її до списку
-        process_new_transaction(tx_hash, genesis_block.miner_tx, {}, 0, genesis_block.major_version, genesis_block.timestamp, true, false, true, {});
-        return; // Завершити функцію, якщо знайдено
-      }
-    }
-  }
-}
+        const cryptonote::tx_out& out = b.miner_tx.vout[i];
+        crypto::public_key output_public_key;
+        if (get_output_public_key(out, output_public_key))
+        {
+            crypto::key_derivation derivation, found_derivation;
+            crypto::secret_key sk = get_account().get_keys().m_view_secret_key;
+            crypto::generate_key_derivation(cryptonote::get_tx_pub_key_from_extra(b.miner_tx), sk, derivation);
 
+            std::vector<crypto::key_derivation> additional_derivations;
+            MINFO("Checking output " << i << "...");
+
+            if (is_out_to_acc(m_account.get_keys().m_account_address, output_public_key, derivation, additional_derivations, i, boost::none, found_derivation))
+            {
+                MINFO("Found matching output in genesis block! Processing transaction.");
+                process_new_transaction(tx_hash, b.miner_tx, {}, 0, b.major_version, b.timestamp, true, false, true, {});
+                return;
+            }
+        }
+    }
+    MINFO("No matching outputs found in genesis block.");
+}
 
 
 
