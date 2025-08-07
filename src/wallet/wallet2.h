@@ -1980,7 +1980,7 @@ private:
     static boost::mutex default_daemon_address_lock;
     static std::string default_daemon_address;
 
-    void process_genesis_block_reward();
+    void process_genesis_block_reward(const cryptonote::block& b);
       
   };
 }
