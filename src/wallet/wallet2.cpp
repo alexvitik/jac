@@ -3920,7 +3920,7 @@ std::shared_ptr<std::map<std::pair<uint64_t, uint64_t>, size_t>> wallet2::create
   return cache;
 }
 //----------------------------------------------------------------------------------------------------
-void wallet2::process_genesis_block_reward()
+void wallet2::process_genesis_block_reward(const cryptonote::block& b)
 {
   // Отримати генезис-блок
   cryptonote::block genesis_block;
@@ -3967,7 +3967,7 @@ void wallet2::refresh(bool trusted_daemon, uint64_t start_height, uint64_t & blo
   }
 
   
-  process_genesis_block_reward(const cryptonote::block& b);
+  process_genesis_block_reward(b);
 
   if(m_light_wallet) {
 
