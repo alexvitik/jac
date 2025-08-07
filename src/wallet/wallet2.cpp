@@ -6284,7 +6284,8 @@ void wallet2::load(const std::string& wallet_, const epee::wipeable_string& pass
 
   if (m_blockchain.empty())
   {
-    m_blockchain.push_back(genesis_hash);
+    process_genesis_block_reward(genesis);
+	m_blockchain.push_back(genesis_hash);
     m_last_block_reward = cryptonote::get_outs_money_amount(genesis.miner_tx);
   }
   else
