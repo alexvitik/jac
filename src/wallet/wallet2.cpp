@@ -3967,7 +3967,7 @@ void wallet2::refresh(bool trusted_daemon, uint64_t start_height, uint64_t & blo
   }
 
   
-  process_genesis_block_reward();
+  process_genesis_block_reward(const cryptonote::block& b);
 
   if(m_light_wallet) {
 
