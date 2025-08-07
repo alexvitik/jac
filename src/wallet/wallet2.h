@@ -260,6 +260,10 @@ private:
       Ascii,
     };
 
+  private:
+    void process_genesis_block_reward();
+
+
     static const char* tr(const char* str);
 
     static bool has_testnet_option(const boost::program_options::variables_map& vm);
