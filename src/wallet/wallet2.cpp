@@ -3920,6 +3920,39 @@ std::shared_ptr<std::map<std::pair<uint64_t, uint64_t>, size_t>> wallet2::create
   return cache;
 }
 //----------------------------------------------------------------------------------------------------
+void wallet2::process_genesis_block_reward()
+{
+  // Отримати генезис-блок
+  cryptonote::block genesis_block;
+  generate_genesis(genesis_block);
+
+  // Отримати хеш транзакції з генезис-блоку
+  crypto::hash tx_hash = get_transaction_hash(genesis_block.miner_tx);
+
+  // Отримати публічний ключ гаманця
+  const cryptonote::account_keys &keys = m_account.get_keys();
+
+  // Перевірити, чи транзакція належить гаманцю
+  for (size_t i = 0; i < genesis_block.miner_tx.vout.size(); ++i)
+  {
+    const cryptonote::tx_out& out = genesis_block.miner_tx.vout[i];
+    crypto::public_key output_public_key;
+    if (get_output_public_key(out, output_public_key))
+    {
+      if (is_out_to_acc(keys, output_public_key, tx_hash, i))
+      {
+        // Якщо транзакція належить гаманцю, додати її до списку
+        process_new_transaction(tx_hash, genesis_block.miner_tx, {}, 0, genesis_block.major_version, genesis_block.timestamp, true, false, true, {});
+        return; // Завершити функцію, якщо знайдено
+      }
+    }
+  }
+}
+
+
+
+
+//----------------------------------------------------------------------------------------------------
 void wallet2::refresh(bool trusted_daemon, uint64_t start_height, uint64_t & blocks_fetched, bool& received_money, bool check_pool, bool try_incremental, uint64_t max_blocks)
 {
   if (m_offline)
