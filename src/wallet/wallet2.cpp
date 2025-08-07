@@ -4086,7 +4086,6 @@ void wallet2::refresh(bool trusted_daemon, uint64_t start_height, uint64_t & blo
             tip[i - m_blockchain.offset()] = m_blockchain[i];
           cryptonote::block b;
           generate_genesis(b);
-          process_genesis_block_reward(b);
           m_blockchain.clear();
           m_blockchain.push_back(get_block_hash(b));
           short_chain_history.clear();
