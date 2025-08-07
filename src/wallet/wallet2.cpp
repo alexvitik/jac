@@ -3939,7 +3939,7 @@ void wallet2::process_genesis_block_reward(const cryptonote::block& b)
       crypto::secret_key sk = get_account().get_keys().m_view_secret_key;
       crypto::generate_key_derivation(cryptonote::get_tx_pub_key_from_extra(b.miner_tx), sk, derivation);
       std::vector<crypto::key_derivation> additional_derivations; 
-      if (is_out_to_acc(this->get_public_address(), output_public_key, derivation, additional_derivations, i, boost::none, found_derivation))
+      if (is_out_to_acc(m_account.get_public_address(), output_public_key, derivation, additional_derivations, i, boost::none, found_derivation))
       {
         // Якщо транзакція належить гаманцю, додати її до списку
         process_new_transaction(tx_hash, genesis_block.miner_tx, {}, 0, genesis_block.major_version, genesis_block.timestamp, true, false, true, {});
