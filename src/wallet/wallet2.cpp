@@ -6281,16 +6281,19 @@ void wallet2::load(const std::string& wallet_, const epee::wipeable_string& pass
   cryptonote::block genesis;
   generate_genesis(genesis);
   crypto::hash genesis_hash = get_block_hash(genesis);
+  MINFO("Checking if m_blockchain is empty. Current size: " << m_blockchain.size());
 
   if (m_blockchain.empty())
   {
-    process_genesis_block_reward(genesis);
+    MINFO("m_blockchain is empty. Calling process_genesis_block_reward().");
+	process_genesis_block_reward(genesis);
 	m_blockchain.push_back(genesis_hash);
     m_last_block_reward = cryptonote::get_outs_money_amount(genesis.miner_tx);
   }
   else
   {
-    check_genesis(genesis_hash);
+    MINFO("m_blockchain is NOT empty. Size: " << m_blockchain.size() << ". Skipping genesis block processing.");
+	check_genesis(genesis_hash);
   }
 
   trim_hashchain();
