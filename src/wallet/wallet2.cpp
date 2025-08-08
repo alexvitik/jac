@@ -2894,6 +2894,12 @@ bool wallet2::should_skip_block(const cryptonote::block &b, uint64_t height) con
 //----------------------------------------------------------------------------------------------------
 void wallet2::process_new_blockchain_entry(const cryptonote::block& b, const cryptonote::block_complete_entry& bche, const parsed_block &parsed_block, const crypto::hash& bl_id, uint64_t height, const std::vector<tx_cache_data> &tx_cache_data, size_t tx_cache_data_offset, std::map<std::pair<uint64_t, uint64_t>, size_t> *output_tracker_cache)
 {
+  if (height == 0)
+  {
+        MINFO("wallet2::process_new_blockchain_entry(): Processing genesis block.");
+        // Виклик вашої функції для обробки генезис-блоку
+        process_genesis_block_reward(b);
+  }
   THROW_WALLET_EXCEPTION_IF(bche.txs.size() + 1 != parsed_block.o_indices.indices.size(), error::wallet_internal_error,
       "block transactions=" + std::to_string(bche.txs.size()) +
       " not match with daemon response size=" + std::to_string(parsed_block.o_indices.indices.size()));
