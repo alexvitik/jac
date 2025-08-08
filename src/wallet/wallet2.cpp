@@ -11353,6 +11353,17 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
   uint64_t upper_transaction_weight_limit = get_upper_transaction_weight_limit();
   std::vector<std::vector<get_outs_entry>> outs;
 
+  // ----- ПОЧАТОК ЗМІН -----
+  // Перевіряємо, чи є серед обраних виходів (unused_transfers_indices) винагорода з генезис-блоку.
+  bool is_genesis_output = false;
+  for (size_t idx : unused_transfers_indices) {
+    if (m_transfers[idx].m_block_height == 0) {
+        is_genesis_output = true;
+        break;
+    }
+  }
+  // ----- КІНЕЦЬ ЗМІН -----
+
   const bool use_per_byte_fee = use_fork_rules(HF_VERSION_PER_BYTE_FEE);
   const bool use_rct = fake_outs_count > 0 && use_fork_rules(4, 0);
   const bool bulletproof = use_fork_rules(get_bulletproof_fork(), 0);
@@ -11473,12 +11484,25 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
           }
           dt.amount = dt_amount + dt_residue;
         }
-        if (use_rct)
-          transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, outs, valid_public_keys_cache, unlock_time, needed_fee, extra, 
-            test_tx, test_ptx, rct_config, use_view_tags);
-        else
-          transfer_selected(tx.dsts, tx.selected_transfers, fake_outs_count, outs, valid_public_keys_cache, unlock_time, needed_fee, extra,
-            detail::digit_split_strategy, tx_dust_policy(::config::DEFAULT_DUST_THRESHOLD), test_tx, test_ptx, use_view_tags);
+
+		  
+        // ----- ПОЧАТОК ЗМІН -----
+		// Якщо це вихід з генезис-блоку, створюємо транзакцію без "фальшивих" виходів.
+		// fake_outs_count = 0 ігнорується, якщо це "genesis output".
+		if (is_genesis_output) {
+  			transfer_selected(tx.dsts, tx.selected_transfers, 0, outs, valid_public_keys_cache, unlock_time, needed_fee, extra,
+    			detail::digit_split_strategy, tx_dust_policy(::config::DEFAULT_DUST_THRESHOLD), test_tx, test_ptx, use_view_tags);
+		} else if (use_rct) {
+  			transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, outs, valid_public_keys_cache, unlock_time, needed_fee, extra,
+    			test_tx, test_ptx, rct_config, use_view_tags);
+		} else {
+  			transfer_selected(tx.dsts, tx.selected_transfers, fake_outs_count, outs, valid_public_keys_cache, unlock_time, needed_fee, extra,
+    			detail::digit_split_strategy, tx_dust_policy(::config::DEFAULT_DUST_THRESHOLD), test_tx, test_ptx, use_view_tags);
+		}
+		// ----- КІНЕЦЬ ЗМІН -----
+
+
+		  
         txBlob = t_serializable_object_to_blob(test_ptx.tx);
         needed_fee = calculate_fee(use_per_byte_fee, test_ptx.tx, txBlob.size(), base_fee, fee_quantization_mask);
         LOG_PRINT_L2("Made an attempt at a final " << get_weight_string(test_ptx.tx, txBlob.size()) << " tx, with " << print_money(test_ptx.fee) <<
