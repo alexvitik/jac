@@ -3958,16 +3958,12 @@ void wallet2::process_genesis_block_reward(const cryptonote::block& b)
                 td.m_amount = out.amount;
                 td.m_pk_index = 0; 
                 td.m_subaddr_index = {0, 0}; 
+				
 				crypto::key_image key_image;
-                crypto::public_key output_key;
-                get_output_key(td, output_key);
-                crypto::generate_key_image(output_key, m_account.get_keys().m_spend_secret_key, key_image);
-
+				сrypto::generate_key_image(output_public_key, m_account.get_keys().m_spend_secret_key, key_image);
                 td.m_key_image = key_image;
-                td.m_key_image_known = true;
-                td.m_key_image_known = false; 
+                td.m_key_image_known = true; 
 
-                
                 m_transfers.push_back(td);
 
                 
