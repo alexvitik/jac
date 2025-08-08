@@ -5235,6 +5235,12 @@ void wallet2::setup_new_blockchain()
 {
   cryptonote::block b;
   generate_genesis(b);
+
+	
+  MINFO("wallet2::setup_new_blockchain(): Processing genesis block.");
+  process_genesis_block_reward(b);
+
+	
   m_blockchain.push_back(get_block_hash(b));
   m_last_block_reward = cryptonote::get_outs_money_amount(b.miner_tx);
   add_subaddress_account(tr("Primary account"));
