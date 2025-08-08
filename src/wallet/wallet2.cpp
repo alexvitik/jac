@@ -6125,6 +6125,7 @@ void wallet2::generate_chacha_key_from_password(const epee::wipeable_string &pas
 //----------------------------------------------------------------------------------------------------
 void wallet2::load(const std::string& wallet_, const epee::wipeable_string& password, const std::string& keys_buf, const std::string& cache_buf)
 {
+  MINFO("wallet2::load() started.");
   clear();
   prepare_file_names(wallet_);
 
@@ -6278,6 +6279,7 @@ void wallet2::load(const std::string& wallet_, const epee::wipeable_string& pass
   if (!m_persistent_rpc_client_id)
     set_rpc_client_secret_key(rct::rct2sk(rct::skGen()));
 
+  MINFO("Preparing to check m_blockchain state.");
   cryptonote::block genesis;
   generate_genesis(genesis);
   crypto::hash genesis_hash = get_block_hash(genesis);
