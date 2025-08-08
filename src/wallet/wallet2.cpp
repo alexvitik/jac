@@ -3950,7 +3950,24 @@ void wallet2::process_genesis_block_reward(const cryptonote::block& b)
             {
                 MINFO("Found matching output in genesis block! Processing transaction.");
 
-                process_new_transfer(tx_hash, out.amount, i, 0, found_derivation, cryptonote::get_tx_pub_key_from_extra(b.miner_tx), b.timestamp);
+                transfer_details td{}; 
+                td.m_block_height = 0;
+                td.m_internal_output_index = i;
+                td.m_global_output_index = 0; 
+                td.m_txid = tx_hash;
+                td.m_amount = out.amount;
+                td.m_pk_index = 0; 
+                td.m_subaddr_index = {0, 0}; 
+                td.m_key_image_known = false; 
+
+                
+                m_transfers.push_back(td);
+
+                
+                set_unspent(m_transfers.size() - 1);
+
+                LOG_PRINT_L0("Received money from genesis block: " << cryptonote::print_money(td.m_amount) << ", with tx: " << td.m_txid);
+                
 
                 return;
             }
