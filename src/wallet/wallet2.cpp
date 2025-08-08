@@ -9481,16 +9481,9 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
   for (auto i = ++selected_transfers.begin(); i != selected_transfers.end(); ++i)
     THROW_WALLET_EXCEPTION_IF(subaddr_account != m_transfers[*i].m_subaddr_index.major, error::wallet_internal_error, "the tx uses funds from multiple accounts");
 
-  if (outs.empty()) {
-  // Якщо ми витрачаємо вихід з генезис-блоку, нам не потрібні виходи для змішування.
-  // Ми можемо пропустити виклик get_outs, щоб уникнути збою.
-  	if (is_genesis_output) {
-    // Просто продовжуємо без виклику get_outs.
-  	} else {
-    // Для всіх інших виходів, викликаємо get_outs як зазвичай.
-    	get_outs(outs, selected_transfers, fake_outputs_count, false, valid_public_keys_cache); // може викликати throw
-  	}
-  }
+  if (outs.empty() && fake_outputs_count > 0)
+    get_outs(outs, selected_transfers, fake_outputs_count, false, valid_public_keys_cache); // може викликати throw
+
 
   //prepare inputs
   LOG_PRINT_L2("preparing outputs");
