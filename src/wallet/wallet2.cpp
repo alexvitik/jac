@@ -11490,14 +11490,14 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
 		// Якщо це вихід з генезис-блоку, створюємо транзакцію без "фальшивих" виходів.
 		// fake_outs_count = 0 ігнорується, якщо це "genesis output".
 		if (is_genesis_output) {
-  			transfer_selected(tx.dsts, tx.selected_transfers, 0, outs, valid_public_keys_cache, unlock_time, needed_fee, extra,
-    			detail::digit_split_strategy, tx_dust_policy(::config::DEFAULT_DUST_THRESHOLD), test_tx, test_ptx, use_view_tags);
+    		transfer_selected(tx.dsts, tx.selected_transfers, 0, outs, valid_public_keys_cache, unlock_time, needed_fee, extra,
+        		detail::digit_split_strategy, tx_dust_policy(::config::DEFAULT_DUST_THRESHOLD), test_tx, test_ptx, use_view_tags, true);
 		} else if (use_rct) {
-  			transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, outs, valid_public_keys_cache, unlock_time, needed_fee, extra,
-    			test_tx, test_ptx, rct_config, use_view_tags);
+    		transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, outs, valid_public_keys_cache, unlock_time, needed_fee, extra,
+        		test_tx, test_ptx, rct_config, use_view_tags);
 		} else {
-  			transfer_selected(tx.dsts, tx.selected_transfers, fake_outs_count, outs, valid_public_keys_cache, unlock_time, needed_fee, extra,
-    			detail::digit_split_strategy, tx_dust_policy(::config::DEFAULT_DUST_THRESHOLD), test_tx, test_ptx, use_view_tags);
+    		transfer_selected(tx.dsts, tx.selected_transfers, fake_outs_count, outs, valid_public_keys_cache, unlock_time, needed_fee, extra,
+        		detail::digit_split_strategy, tx_dust_policy(::config::DEFAULT_DUST_THRESHOLD), test_tx, test_ptx, use_view_tags, false);
 		}
 		// ----- КІНЕЦЬ ЗМІН -----
 
