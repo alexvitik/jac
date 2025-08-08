@@ -3960,7 +3960,7 @@ void wallet2::process_genesis_block_reward(const cryptonote::block& b)
                 td.m_subaddr_index = {0, 0}; 
 				
 				crypto::key_image key_image;
-				сrypto::generate_key_image(output_public_key, m_account.get_keys().m_spend_secret_key, key_image);
+				crypto::generate_key_image(output_public_key, m_account.get_keys().m_spend_secret_key, key_image);
                 td.m_key_image = key_image;
                 td.m_key_image_known = true; 
 
