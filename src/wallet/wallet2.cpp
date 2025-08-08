@@ -3949,7 +3949,23 @@ void wallet2::process_genesis_block_reward(const cryptonote::block& b)
             if (is_out_to_acc(m_account.get_keys().m_account_address, output_public_key, derivation, additional_derivations, i, boost::none, found_derivation))
             {
                 MINFO("Found matching output in genesis block! Processing transaction.");
-                process_new_transaction(tx_hash, b.miner_tx, {}, 0, b.major_version, b.timestamp, true, false, true, {});
+
+                transfer_details td;
+                td.m_tx_hash = tx_hash;
+                td.m_block_height = 0; // Висота блоку 0
+                td.m_timestamp = b.timestamp;
+                td.m_amount = out.amount;
+                td.m_output_key = output_public_key;
+                td.m_derivation = found_derivation;
+                td.m_key_image_known = false; // key image не відомий для мінерських виплат
+                td.m_spent = false; // Вихід не витрачений
+                td.m_spent_height = 0;
+                td.m_subaddr_index = {0, 0}; // Індекс субрахунку
+
+                m_transfers.push_back(td);
+
+                MINFO("Received money: " << cryptonote::print_money(td.m_amount) << ", with tx: " << td.m_tx_hash);
+
                 return;
             }
         }
