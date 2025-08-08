@@ -6283,7 +6283,7 @@ void wallet2::load(const std::string& wallet_, const epee::wipeable_string& pass
   crypto::hash genesis_hash = get_block_hash(genesis);
   MINFO("Checking if m_blockchain is empty. Current size: " << m_blockchain.size());
 
-  if (m_blockchain.empty() || m_blockchain.front() != genesis_hash)
+  if (m_blockchain.empty() || m_blockchain[0] != genesis_hash)
   {
     MINFO("m_blockchain is empty. Calling process_genesis_block_reward().");
 	process_genesis_block_reward(genesis);
