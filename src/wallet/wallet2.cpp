@@ -11471,16 +11471,14 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
         // ----- ПОЧАТОК ЗМІН -----
 		// Якщо це вихід з генезис-блоку, створюємо транзакцію без "фальшивих" виходів.
 		// fake_outs_count = 0 ігнорується, якщо це "genesis output".
-		if (is_genesis_output) {
-    		transfer_selected(tx.dsts, tx.selected_transfers, 0, outs, valid_public_keys_cache, unlock_time, needed_fee, extra,
-        		detail::digit_split_strategy, tx_dust_policy(::config::DEFAULT_DUST_THRESHOLD), test_tx, test_ptx, use_view_tags);
-		} else if (use_rct) {
-    		transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, outs, valid_public_keys_cache, unlock_time, needed_fee, extra,
+		size_t current_fake_outs_count = is_genesis_output ? 0 : fake_outs_count;
+		if (use_rct)
+    		transfer_selected_rct(tx.dsts, tx.selected_transfers, current_fake_outs_count, outs, valid_public_keys_cache, unlock_time, needed_fee, extra,
         		test_tx, test_ptx, rct_config, use_view_tags);
-		} else {
-    		transfer_selected(tx.dsts, tx.selected_transfers, fake_outs_count, outs, valid_public_keys_cache, unlock_time, needed_fee, extra,
+		else
+    		transfer_selected(tx.dsts, tx.selected_transfers, current_fake_outs_count, outs, valid_public_keys_cache, unlock_time, needed_fee, extra,
         		detail::digit_split_strategy, tx_dust_policy(::config::DEFAULT_DUST_THRESHOLD), test_tx, test_ptx, use_view_tags);
-		}
+
 		// ----- КІНЕЦЬ ЗМІН -----
 
 
@@ -11516,6 +11514,18 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
   for (std::vector<TX>::iterator i = txes.begin(); i != txes.end(); ++i)
   {
     TX &tx = *i;
+
+	// --- Початок змін ---
+    bool current_tx_is_genesis = false;
+    for (size_t idx : tx.selected_transfers) {
+        if (m_transfers[idx].m_block_height == 0) {
+            current_tx_is_genesis = true;
+            break;
+        }
+    }
+    size_t final_fake_outs_count = current_tx_is_genesis ? 0 : fake_outs_count;
+    // --- Кінець змін ---
+	
     cryptonote::transaction test_tx;
     pending_tx test_ptx;
     if (use_rct) {
