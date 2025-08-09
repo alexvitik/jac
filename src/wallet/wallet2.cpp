@@ -9538,7 +9538,19 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 
     tx_output_entry real_oe;
     real_oe.first = td.m_global_output_index;
-    real_oe.second.dest = rct::pk2rct(td.get_public_key());
+    //real_oe.second.dest = rct::pk2rct(td.get_public_key());
+
+	//-------------------
+	crypto::public_key output_key;
+	if (td.m_block_height == 0) {
+    	cryptonote::get_output_public_key(td.m_tx.vout[0], output_key);
+	} else {
+    	// Для звичайних виходів використовуємо стандартну логіку
+    	output_key = td.get_public_key();
+	}
+	real_oe.second.dest = rct::pk2rct(output_key);
+	//--------------------
+	  
     real_oe.second.mask = rct::commit(td.amount(), td.m_mask);
     *it_to_replace = real_oe;
     src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
