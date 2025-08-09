@@ -11459,6 +11459,11 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
 
     const transfer_details &td = m_transfers[idx];
 
+	// -----------------------
+    LOG_ERROR("DEBUG_INFO: td.m_block_height = " << td.m_block_height);
+    LOG_ERROR("DEBUG_INFO: td.m_internal_output_index = " << td.m_internal_output_index);
+    // -------------------------
+
 	// ...
 	if (td.m_block_height == 0) {
     	// Змінюємо індекс безпосередньо в об'єкті m_transfers
