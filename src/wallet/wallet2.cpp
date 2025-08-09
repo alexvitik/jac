@@ -9748,6 +9748,14 @@ void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry
     sources.resize(sources.size()+1);
     cryptonote::tx_source_entry& src = sources.back();
     const transfer_details& td = m_transfers[idx];
+
+	//-----------
+	LOG_ERROR("DEBUG_INFO: td.m_block_height = " << td.m_block_height);
+	LOG_ERROR("DEBUG_INFO: td.m_internal_output_index = " << td.m_internal_output_index);
+	LOG_ERROR("DEBUG_INFO: td.amount() = " << td.amount());
+	LOG_ERROR("DEBUG_INFO: td.m_tx.vout.size() = " << td.m_tx.vout.size()); // **УВАГА: ЦЕЙ РЯДОК МОЖЕ ВИКЛИКАТИ ЗБІЙ**
+	//------------
+	  
     src.amount = td.amount();
     src.rct = td.is_rct();
     //paste mixin transaction
