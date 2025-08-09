@@ -9747,13 +9747,26 @@ void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry
   {
     sources.resize(sources.size()+1);
     cryptonote::tx_source_entry& src = sources.back();
-    const transfer_details& td = m_transfers[idx];
+    //const transfer_details& td = m_transfers[idx];
 
 	//-----------
-	LOG_ERROR("DEBUG_INFO: td.m_block_height = " << td.m_block_height);
-	LOG_ERROR("DEBUG_INFO: td.m_internal_output_index = " << td.m_internal_output_index);
-	LOG_ERROR("DEBUG_INFO: td.amount() = " << td.amount());
-	LOG_ERROR("DEBUG_INFO: td.m_tx.vout.size() = " << td.m_tx.vout.size()); // **УВАГА: ЦЕЙ РЯДОК МОЖЕ ВИКЛИКАТИ ЗБІЙ**
+	// Перевіряємо, чи індекс є дійсним
+	if (idx < m_transfers.size()) {
+    	const transfer_details& td = m_transfers[idx];
+	    // Додаємо наші діагностичні логи, щоб вони точно спрацювали
+	    LOG_ERROR("DEBUG_INFO: td.m_block_height = " << td.m_block_height);
+	    LOG_ERROR("DEBUG_INFO: td.m_internal_output_index = " << td.m_internal_output_index);
+	    LOG_ERROR("DEBUG_INFO: td.amount() = " << td.amount());
+	
+	    // Тепер, коли ми впевнені, що об'єкт існує, ми можемо додати перевірку на m_tx.vout.
+	    // Якщо цей рядок знову викличе збій, це означатиме, що td.m_tx неініціалізований.
+	    LOG_ERROR("DEBUG_INFO: td.m_tx.vout.size() = " << td.m_tx.vout.size());
+
+	} else {
+	    // Обробка помилки, якщо індекс недійсний
+	    LOG_ERROR("DEBUG_INFO: Invalid index: " << idx);
+	    return std::vector<pending_tx>();
+	}
 	//------------
 	  
     src.amount = td.amount();
