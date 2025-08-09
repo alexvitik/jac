@@ -9503,6 +9503,7 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
     if (td.m_block_height == 0) {
        // Для unmixable-виходів індекс завжди має бути 0
        internal_output_index = 0;
+       LOG_ERROR("DEBUG: Correcting m_internal_output_index for block 0 to " << internal_output_index);
     }
     // ----- КІНЕЦЬ ВИПРАВЛЕНЬ -----
 
