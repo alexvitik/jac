@@ -11474,11 +11474,10 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
 		size_t current_fake_outs_count = is_genesis_output ? 0 : fake_outs_count;
 		if (use_rct)
     		transfer_selected_rct(tx.dsts, tx.selected_transfers, current_fake_outs_count, outs, valid_public_keys_cache, unlock_time, needed_fee, extra,
-        		test_tx, test_ptx, rct_config, use_view_tags);
+		        test_tx, test_ptx, rct_config, use_view_tags);
 		else
     		transfer_selected(tx.dsts, tx.selected_transfers, current_fake_outs_count, outs, valid_public_keys_cache, unlock_time, needed_fee, extra,
         		detail::digit_split_strategy, tx_dust_policy(::config::DEFAULT_DUST_THRESHOLD), test_tx, test_ptx, use_view_tags);
-
 		// ----- КІНЕЦЬ ЗМІН -----
 
 
@@ -11528,13 +11527,17 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
 	
     cryptonote::transaction test_tx;
     pending_tx test_ptx;
-    if (use_rct) {
-      transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, tx.outs, valid_public_keys_cache, unlock_time, tx.needed_fee, extra,
-        test_tx, test_ptx, rct_config, use_view_tags);
-    } else {
-      transfer_selected(tx.dsts, tx.selected_transfers, fake_outs_count, tx.outs, valid_public_keys_cache, unlock_time, tx.needed_fee, extra,
-        detail::digit_split_strategy, tx_dust_policy(::config::DEFAULT_DUST_THRESHOLD), test_tx, test_ptx, use_view_tags);
-    }
+    
+	// ----- ПОЧАТОК ВИПРАВЛЕНЬ -----
+	if (use_rct) {
+    	transfer_selected_rct(tx.dsts, tx.selected_transfers, final_fake_outs_count, tx.outs, valid_public_keys_cache, unlock_time, tx.needed_fee, extra,
+        	test_tx, test_ptx, rct_config, use_view_tags);
+	} else {
+    	transfer_selected(tx.dsts, tx.selected_transfers, final_fake_outs_count, tx.outs, valid_public_keys_cache, unlock_time, tx.needed_fee, extra,
+        	detail::digit_split_strategy, tx_dust_policy(::config::DEFAULT_DUST_THRESHOLD), test_tx, test_ptx, use_view_tags);
+	}
+	// ----- КІНЕЦЬ ВИПРАВЛЕНЬ -----
+	  
     auto txBlob = t_serializable_object_to_blob(test_ptx.tx);
     tx.tx = test_tx;
     tx.ptx = test_ptx;
