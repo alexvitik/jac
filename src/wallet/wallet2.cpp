@@ -9546,7 +9546,7 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 	    if (td.m_tx.vout.size() > 0) {
         	cryptonote::get_output_public_key(td.m_tx.vout[0], output_key);
     	} else {
-        	output_key = cryptonote::null_pkey;
+        	output_key = crypto::null_pkey;
     	}
 	} else {
     	// Для звичайних RingCT виходів використовуємо стандартну логіку
