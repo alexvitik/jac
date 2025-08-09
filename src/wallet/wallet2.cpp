@@ -9493,7 +9493,15 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
   {
     sources.resize(sources.size()+1);
     cryptonote::tx_source_entry& src = sources.back();
-    const transfer_details& td = m_transfers[idx];
+    //const transfer_details& td = m_transfers[idx];
+
+	//------------------
+	transfer_details td = m_transfers[idx];
+	if (td.m_block_height == 0) {
+    	td.m_internal_output_index = 0;
+	}
+	//----------------------------
+
     src.amount = td.amount();
     src.rct = td.is_rct();
 
