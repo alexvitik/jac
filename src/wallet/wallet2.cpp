@@ -9496,6 +9496,16 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
     const transfer_details& td = m_transfers[idx];
     src.amount = td.amount();
     src.rct = td.is_rct();
+
+	// ----- ПОЧАТОК ВИПРАВЛЕНЬ -----
+    // Перевіряємо, чи є вихід unmixable (з 0-го блоку)
+    size_t internal_output_index = td.m_internal_output_index;
+    if (td.m_block_height == 0) {
+       // Для unmixable-виходів індекс завжди має бути 0
+       internal_output_index = 0;
+    }
+    // ----- КІНЕЦЬ ВИПРАВЛЕНЬ -----
+
     //paste keys (fake and real)
 
     for (size_t n = 0; n < fake_outputs_count + 1; ++n)
