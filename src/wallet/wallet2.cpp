@@ -11457,27 +11457,35 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
         ? pop_best_value(unused_dust_indices, tx.selected_transfers)
       : pop_best_value(unused_transfers_indices, tx.selected_transfers);
 
-    const transfer_details &td = m_transfers[idx];
+    //const transfer_details &td = m_transfers[idx];
 
 	// -----------------------
-    LOG_ERROR("DEBUG_INFO: td.m_block_height = " << td.m_block_height);
-    LOG_ERROR("DEBUG_INFO: td.m_internal_output_index = " << td.m_internal_output_index);
-    // -------------------------
+    transfer_details td_copy = m_transfers[idx];
 
-	// ...
-	if (td.m_block_height == 0) {
-    	// Змінюємо індекс безпосередньо в об'єкті m_transfers
-    	const_cast<transfer_details&>(td).m_internal_output_index = 0;
-    	LOG_ERROR("DEBUG: Corrected m_internal_output_index to 0 for unmixable output at index " << idx);
-	}
+    LOG_ERROR("DEBUG_INFO: td.m_block_height = " << td_copy.m_block_height);
+    LOG_ERROR("DEBUG_INFO: td.m_internal_output_index = " << td_copy.m_internal_output_index);
+
+    if (td_copy.m_block_height == 0) {
+        // Змінюємо індекс в локальній копії
+        td_copy.m_internal_output_index = 0;
+        LOG_ERROR("DEBUG: Corrected m_internal_output_index to 0 for unmixable output at index " << idx);
+    }
+    // ...
+
+    LOG_PRINT_L2("Picking output " << idx << ", amount " << print_money(td_copy.amount()));
+
+    // add this output to the list to spend
+    tx.selected_transfers.push_back(idx);
+    uint64_t available_amount = td_copy.amount();
+    accumulated_outputs += available_amount;
 	// ...
 
     LOG_PRINT_L2("Picking output " << idx << ", amount " << print_money(td.amount()));
 
     // add this output to the list to spend
-    tx.selected_transfers.push_back(idx);
-    uint64_t available_amount = td.amount();
-    accumulated_outputs += available_amount;
+    //tx.selected_transfers.push_back(idx);
+    //uint64_t available_amount = td.amount();
+    //accumulated_outputs += available_amount;
 
     // clear any fake outs we'd already gathered, since we'll need a new set
     outs.clear();
