@@ -11437,8 +11437,6 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
     const transfer_details &td = m_transfers[idx];
 
 	// ...
-	// Додаємо цей блок після рядка `tx.selected_transfers.push_back(idx);`
-
 	if (td.m_block_height == 0) {
     	// Змінюємо індекс безпосередньо в об'єкті m_transfers
     	const_cast<transfer_details&>(td).m_internal_output_index = 0;
