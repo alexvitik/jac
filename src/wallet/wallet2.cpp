@@ -11366,6 +11366,8 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
 	// Визначаємо, чи використовувати RingCT.
 	// RingCT не використовується, якщо є генезис-виходи.
 	const bool use_rct_for_this_tx = fake_outs_count > 0 && use_fork_rules(4, 0) && !has_genesis_output;
+
+	LOG_ERROR("DEBUG: use_rct_for_this_tx is " << (use_rct_for_this_tx ? "true" : "false"));
   // ----- КІНЕЦЬ ЗМІН -----
 
   const bool use_per_byte_fee = use_fork_rules(HF_VERSION_PER_BYTE_FEE);
@@ -11491,7 +11493,7 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
 
 		//block2  
         // ----- ПОЧАТОК ЗМІН -----
-
+		LOG_ERROR("DEBUG: Inside Block2, use_rct_for_this_tx is " << (use_rct_for_this_tx ? "true" : "false"));
 		if (use_rct_for_this_tx) {
     		transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, outs, valid_public_keys_cache, unlock_time, needed_fee, extra,
         		test_tx, test_ptx, rct_config, use_view_tags);
@@ -11542,6 +11544,7 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
 
 	//block3
 	// ----- ПОЧАТОК ВИПРАВЛЕНЬ -----
+	LOG_ERROR("DEBUG: Inside Block3, use_rct_for_this_tx is " << (use_rct_for_this_tx ? "true" : "false"));
 	if (use_rct_for_this_tx) {
     	transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, tx.outs, valid_public_keys_cache, unlock_time, tx.needed_fee, extra,
         	test_tx, test_ptx, rct_config, use_view_tags);
