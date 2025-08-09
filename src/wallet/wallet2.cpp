@@ -9543,12 +9543,15 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 	//-------------------
 	crypto::public_key output_key;
 	if (td.m_block_height == 0) {
-    	cryptonote::get_output_public_key(td.m_tx.vout[0], output_key);
+	    if (td.m_tx.vout.size() > 0) {
+        	cryptonote::get_output_public_key(td.m_tx.vout[0], output_key);
+    	} else {
+        	output_key = cryptonote::null_pkey;
+    	}
 	} else {
-    	// Для звичайних виходів використовуємо стандартну логіку
+    	// Для звичайних RingCT виходів використовуємо стандартну логіку
     	output_key = td.get_public_key();
 	}
-	real_oe.second.dest = rct::pk2rct(output_key);
 	//--------------------
 	  
     real_oe.second.mask = rct::commit(td.amount(), td.m_mask);
