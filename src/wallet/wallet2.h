@@ -350,6 +350,12 @@ private:
       bool is_rct() const { return m_rct; }
       uint64_t amount() const { return m_amount; }
       const crypto::public_key get_public_key() const {
+        if (m_block_height == 0) {
+          crypto::public_key output_public_key;
+          THROW_WALLET_EXCEPTION_IF(!get_output_public_key(m_tx.vout[0], output_public_key),
+            error::wallet_internal_error, "Unable to get output public key from output");
+          return output_public_key;
+        }
         crypto::public_key output_public_key;
         THROW_WALLET_EXCEPTION_IF(m_tx.vout.size() <= m_internal_output_index,
           error::wallet_internal_error, "Too few outputs, outputs may be corrupted");
