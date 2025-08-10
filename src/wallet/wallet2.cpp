@@ -11459,6 +11459,12 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
 
 	// -----------------------
     const transfer_details &td_const = m_transfers[idx];
+	// Якщо m_tx.vout порожній, це означає, що дані пошкоджені.
+    // Ми просто пропускаємо цей вихід і переходимо до наступного.
+    if (td_const.m_tx.vout.empty()) {
+        LOG_ERROR("DEBUG: Skipping corrupted output with empty vout vector. idx = " << idx);
+        continue; // Переходимо до наступної ітерації циклу
+    }
 
     // Cтворюємо копію td для безпечного коригування
     transfer_details td = td_const;
