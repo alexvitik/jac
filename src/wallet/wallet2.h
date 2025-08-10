@@ -374,7 +374,6 @@ private:
 
         return output_public_key;
     }
-
 //      const crypto::public_key get_public_key() const {
 //        if (m_block_height == 0) {
 //          crypto::public_key output_public_key;
