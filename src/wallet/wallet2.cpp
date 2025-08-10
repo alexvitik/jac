@@ -11455,29 +11455,38 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
         ? pop_best_value(unused_dust_indices, tx.selected_transfers)
       : pop_best_value(unused_transfers_indices, tx.selected_transfers);
 
-    //const transfer_details &td = m_transfers[idx];
+    const transfer_details &td = m_transfers[idx];
 
-    //---------------------------
-	transfer_details td = m_transfers[idx];
-	if (td.m_block_height == 0) {
-        // Змінюємо індекс в локальній копії
-        td.m_internal_output_index = 0;
+	// -----------------------
+    // Логи для відстеження вхідних даних
+    LOG_ERROR("DEBUG: td.m_block_height = " << td.m_block_height);
+    LOG_ERROR("DEBUG: td.m_internal_output_index = " << td.m_internal_output_index);
+    // -----------------------
+
+    // Логи для перевірки коригування індексу
+    if (td.m_block_height == 0) {
+        LOG_ERROR("DEBUG: Found unmixable output. Correcting index...");
+        const_cast<transfer_details&>(td).m_internal_output_index = 0;
+        LOG_ERROR("DEBUG: Index corrected to " << td.m_internal_output_index);
     }
 
-    LOG_PRINT_L2("Picking output " << idx << ", amount " << print_money(td.amount()));
-    tx.selected_transfers.push_back(idx);
+    // Логи для перевірки отримання суми
+    LOG_ERROR("DEBUG: Attempting to get amount...");
     uint64_t available_amount = td.amount();
+    LOG_ERROR("DEBUG: Amount retrieved: " << print_money(available_amount));
+
+    // Логи для перевірки подальших операцій
+    LOG_ERROR("DEBUG: Adding output to selected_transfers...");
+    tx.selected_transfers.push_back(idx);
+    LOG_ERROR("DEBUG: Output added.");
+
+    LOG_ERROR("DEBUG: Accumulating output amount...");
     accumulated_outputs += available_amount;
+    LOG_ERROR("DEBUG: Output accumulated.");
+    
+    // ...
+
     LOG_PRINT_L2("Picking output " << idx << ", amount " << print_money(td.amount()));
-
-
-	//------------------------------
-
-    // add this output to the list to spend
-    //tx.selected_transfers.push_back(idx);
-    //uint64_t available_amount = td.amount();
-
-    //LOG_PRINT_L2("Picking output " << idx << ", amount " << print_money(td.amount()));
     // add this output to the list to spend
     //tx.selected_transfers.push_back(idx);
     //uint64_t available_amount = td.amount();
