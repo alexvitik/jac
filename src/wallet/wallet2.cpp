@@ -11457,27 +11457,38 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
 
     //const transfer_details &td = m_transfers[idx];
 
-	// -----------------------
-    if (td_copy.m_block_height == 0) {
-        // Змінюємо індекс в локальній копії
-        td_copy.m_internal_output_index = 0;
+    //---------------------------
+	// Створюємо локальну копію, щоб уникнути const_cast
+    const transfer_details td = m_transfers[idx];
+    uint64_t available_amount = 0;
+
+    if (td.m_block_height == 0) {
+        // Отримуємо суму з генезис-блоку, не хардкодячи її
+        const cryptonote::block &genesis_block = cryptonote::get_genesis_block();
+        if (genesis_block.miner_tx.vout.size() > 0) {
+            available_amount = genesis_block.miner_tx.vout[0].amount;
+        }
+
+        // Коригуємо індекс у локальній копії
+        const_cast<transfer_details&>(td).m_internal_output_index = 0;
+    } else {
+        // Для всіх інших виходів, td.amount() є безпечним
+        available_amount = td.amount();
     }
-    // ...
 
-    LOG_PRINT_L2("Picking output " << idx << ", amount " << print_money(td_copy.amount()));
+    LOG_PRINT_L2("Picking output " << idx << ", amount " << print_money(available_amount));
 
-    // add this output to the list to spend
+    // додаємо цей вихід до списку витрат
     tx.selected_transfers.push_back(idx);
-    //uint64_t available_amount = td.amount();
-	  
-	//-------------
-	uint64_t available_amount = td_copy.amount();
-	//-----------------
-	  
     accumulated_outputs += available_amount;
 
-    LOG_PRINT_L2("Picking output " << idx << ", amount " << print_money(td_copy.amount()));
-	//---------------
+	//------------------------------
+
+    // add this output to the list to spend
+    //tx.selected_transfers.push_back(idx);
+    //uint64_t available_amount = td.amount();
+
+    //LOG_PRINT_L2("Picking output " << idx << ", amount " << print_money(td.amount()));
     // add this output to the list to spend
     //tx.selected_transfers.push_back(idx);
     //uint64_t available_amount = td.amount();
