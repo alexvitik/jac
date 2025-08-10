@@ -360,38 +360,30 @@ private:
         LOG_ERROR("DEBUG: m_internal_output_index: " << m_internal_output_index);
         // --- КІНЕЦЬ ЛОГІВ ---
 
-        // Створюємо відвідувача для варіантів
-        struct get_public_key_visitor : public boost::static_visitor<crypto::public_key>
-        {
-            crypto::public_key operator()(const cryptonote::txout_to_key& out) const
-            {
-                return out.key;
-            }
-
-            template <typename T>
-            crypto::public_key operator()(const T& out) const
-            {
-                // Ця частина буде викликана, якщо вихід має невірний тип
-                throw boost::bad_get();
-            }
-        };
+        crypto::public_key output_public_key;
     
-        // Отримуємо посилання на об'єкт варіанта
-        const cryptonote::tx_out& tx_out_variant = (m_block_height == 0) 
-            ? m_tx.vout[0] 
-            : m_tx.vout[m_internal_output_index];
+        // Створюємо тимчасовий об'єкт boost::variant з потрібним типом
+        boost::variant<const cryptonote::txout_to_key*, const void*> out_variant_wrapper;
     
-        try {
-            // Застосовуємо відвідувача до варіанта, щоб отримати публічний ключ
-            return boost::apply_visitor(get_public_key_visitor(), tx_out_variant);
-        } catch (const boost::bad_get& e) {
-            // Обробляємо помилку, якщо відвідувач не знайшов відповідний тип
-            THROW_WALLET_EXCEPTION_IF(true,
-              error::wallet_internal_error, "Output is not of type txout_to_key.");
+        // Встановлюємо значення для нашого варіанта
+        if (m_block_height == 0) {
+            THROW_WALLET_EXCEPTION_IF(m_tx.vout.size() <= 0,
+              error::wallet_internal_error, "Genesis block output is missing.");
+            out_variant_wrapper = boost::get<cryptonote::txout_to_key>(&m_tx.vout[0]);
+        } else {
+            THROW_WALLET_EXCEPTION_IF(m_internal_output_index >= m_tx.vout.size(),
+              error::wallet_internal_error, "Internal output index is out of bounds.");
+            out_variant_wrapper = boost::get<cryptonote::txout_to_key>(&m_tx.vout[m_internal_output_index]);
         }
 
-        // Повернення, яке ніколи не буде досягнуте, але потрібне компілятору
-        return crypto::public_key();
+        const cryptonote::txout_to_key* out_key_ptr = boost::get<const cryptonote::txout_to_key*>(out_variant_wrapper);
+    
+        THROW_WALLET_EXCEPTION_IF(!out_key_ptr,
+          error::wallet_internal_error, "Output is not of type txout_to_key.");
+
+        output_public_key = out_key_ptr->key;
+    
+        return output_public_key;
     }
 //      const crypto::public_key get_public_key() const {
 //        if (m_block_height == 0) {
