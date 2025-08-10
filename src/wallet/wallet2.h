@@ -360,23 +360,38 @@ private:
         LOG_ERROR("DEBUG: m_internal_output_index: " << m_internal_output_index);
         // --- КІНЕЦЬ ЛОГІВ ---
 
-        crypto::public_key output_public_key;
+        // Створюємо відвідувача для варіантів
+        struct get_public_key_visitor : public boost::static_visitor<crypto::public_key>
+        {
+            crypto::public_key operator()(const cryptonote::txout_to_key& out) const
+            {
+                return out.key;
+            }
+
+            template <typename T>
+            crypto::public_key operator()(const T& out) const
+            {
+                // Ця частина буде викликана, якщо вихід має невірний тип
+                throw boost::bad_get();
+            }
+        };
     
         // Отримуємо посилання на об'єкт варіанта
         const cryptonote::tx_out& tx_out_variant = (m_block_height == 0) 
             ? m_tx.vout[0] 
             : m_tx.vout[m_internal_output_index];
     
-        // Використовуємо boost::get з вказівником для уникнення помилки компіляції
-        const cryptonote::txout_to_key* out_key_ptr = boost::get<cryptonote::txout_to_key>(&tx_out_variant);
-    
-        // Перевіряємо, чи отримано дійсний вказівник
-        THROW_WALLET_EXCEPTION_IF(!out_key_ptr,
-          error::wallet_internal_error, "Output is not of type txout_to_key.");
+        try {
+            // Застосовуємо відвідувача до варіанта, щоб отримати публічний ключ
+            return boost::apply_visitor(get_public_key_visitor(), tx_out_variant);
+        } catch (const boost::bad_get& e) {
+            // Обробляємо помилку, якщо відвідувач не знайшов відповідний тип
+            THROW_WALLET_EXCEPTION_IF(true,
+              error::wallet_internal_error, "Output is not of type txout_to_key.");
+        }
 
-        output_public_key = out_key_ptr->key;
-    
-        return output_public_key;
+        // Повернення, яке ніколи не буде досягнуте, але потрібне компілятору
+        return crypto::public_key();
     }
 //      const crypto::public_key get_public_key() const {
 //        if (m_block_height == 0) {
