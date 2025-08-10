@@ -11400,8 +11400,6 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
 	// Визначаємо, чи використовувати RingCT.
 	// RingCT не використовується, якщо є генезис-виходи.
 	const bool use_rct_for_this_tx = fake_outs_count > 0 && use_fork_rules(4, 0) && !has_genesis_output;
-
-	LOG_ERROR("DEBUG: use_rct_for_this_tx is " << (use_rct_for_this_tx ? "true" : "false"));
   // ----- КІНЕЦЬ ЗМІН -----
 
   const bool use_per_byte_fee = use_fork_rules(HF_VERSION_PER_BYTE_FEE);
@@ -11460,15 +11458,9 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
     //const transfer_details &td = m_transfers[idx];
 
 	// -----------------------
-    transfer_details td_copy = m_transfers[idx];
-
-    LOG_ERROR("DEBUG_INFO: td.m_block_height = " << td_copy.m_block_height);
-    LOG_ERROR("DEBUG_INFO: td.m_internal_output_index = " << td_copy.m_internal_output_index);
-
     if (td_copy.m_block_height == 0) {
         // Змінюємо індекс в локальній копії
         td_copy.m_internal_output_index = 0;
-        LOG_ERROR("DEBUG: Corrected m_internal_output_index to 0 for unmixable output at index " << idx);
     }
     // ...
 
@@ -11476,7 +11468,12 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
 
     // add this output to the list to spend
     tx.selected_transfers.push_back(idx);
-    uint64_t available_amount = td_copy.amount();
+    //uint64_t available_amount = td.amount();
+	  
+	//-------------
+	uint64_t available_amount = td_copy.amount();
+	//-----------------
+	  
     accumulated_outputs += available_amount;
 
     LOG_PRINT_L2("Picking output " << idx << ", amount " << print_money(td_copy.amount()));
