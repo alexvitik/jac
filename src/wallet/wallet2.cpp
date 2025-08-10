@@ -11464,7 +11464,7 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
 
     if (td.m_block_height == 0) {
         // Отримуємо суму з генезис-блоку, не хардкодячи її
-        const cryptonote::block &genesis_block = cryptonote::get_genesis_block();
+        const cryptonote::block genesis_block = cryptonote::get_block_from_height(0);
         if (genesis_block.miner_tx.vout.size() > 0) {
             available_amount = genesis_block.miner_tx.vout[0].amount;
         }
