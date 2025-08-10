@@ -350,7 +350,7 @@ private:
       bool is_rct() const { return m_rct; }
       uint64_t amount() const { return m_amount; }
       const crypto::public_key get_public_key() const {
-        // Додаємо перевірку на порожній вектор на самому початку.
+        // Перевіряємо, чи не порожній вектор
         THROW_WALLET_EXCEPTION_IF(m_tx.vout.empty(),
           error::wallet_internal_error, "Transaction output vector is empty, data is corrupted.");
 
@@ -361,21 +361,25 @@ private:
         // --- КІНЕЦЬ ЛОГІВ ---
 
         crypto::public_key output_public_key;
+        const cryptonote::txout_to_key* out_key_ptr = nullptr;
 
         // Спеціальна логіка для виходів з генезис-блоку.
-        // У ньому завжди лише один вихід з індексом 0.
         if (m_block_height == 0) {
-            // Отримуємо публічний ключ напряму, без використання загальної функції.
-            const cryptonote::txout_to_key& out_key = boost::get<cryptonote::txout_to_key>(m_tx.vout[0]);
-            output_public_key = out_key.key;
+            // Отримуємо вказівник на об'єкт, щоб уникнути помилки компілятора
+            out_key_ptr = boost::get<cryptonote::txout_to_key>(&m_tx.vout[0]);
         } else {
-            // Загальна логіка для всіх інших виходів.
             THROW_WALLET_EXCEPTION_IF(m_internal_output_index >= m_tx.vout.size(),
               error::wallet_internal_error, "Internal output index is out of bounds.");
 
-            const cryptonote::txout_to_key& out_key = boost::get<cryptonote::txout_to_key>(m_tx.vout[m_internal_output_index]);
-            output_public_key = out_key.key;
+            // Отримуємо вказівник для звичайних виходів
+            out_key_ptr = boost::get<cryptonote::txout_to_key>(&m_tx.vout[m_internal_output_index]);
         }
+    
+        // Перевіряємо, чи вказівник не порожній, і отримуємо ключ
+        THROW_WALLET_EXCEPTION_IF(!out_key_ptr,
+          error::wallet_internal_error, "Output is not of type txout_to_key.");
+
+        output_public_key = out_key_ptr->key;
     
         return output_public_key;
     }
