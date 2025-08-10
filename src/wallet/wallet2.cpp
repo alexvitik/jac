@@ -11458,38 +11458,17 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
     //const transfer_details &td = m_transfers[idx];
 
     //---------------------------
-	// Створюємо локальну копію, щоб уникнути const_cast
-    // Це безпечно, оскільки 'td' тепер є локальною змінною.
-    const transfer_details td = m_transfers[idx];
-    uint64_t available_amount = 0;
-
-    if (td.m_block_height == 0) {
-        // Отримуємо суму з транзакції генезис-блоку, використовуючи td.m_txid.
-        cryptonote::transaction genesis_tx;
-        if (!get_tx(td.m_txid, genesis_tx)) {
-             // Якщо не вдалося отримати транзакцію, це помилка.
-             throw std::runtime_error("Could not retrieve genesis transaction");
-        }
-        
-        // Сума знаходиться в першому виході транзакції
-        if (genesis_tx.vout.size() > 0) {
-            available_amount = genesis_tx.vout[0].amount;
-        } else {
-            throw std::runtime_error("Genesis transaction has no outputs");
-        }
-
-        // Коригуємо індекс у локальній копії
-        const_cast<transfer_details&>(td).m_internal_output_index = 0;
-    } else {
-        // Для всіх інших виходів, td.amount() є безпечним.
-        available_amount = td.amount();
+	if (td_copy.m_block_height == 0) {
+        // Змінюємо індекс в локальній копії
+        td_copy.m_internal_output_index = 0;
     }
 
-    LOG_PRINT_L2("Picking output " << idx << ", amount " << print_money(available_amount));
-
-    // Додаємо цей вихід до списку витрат
+    LOG_PRINT_L2("Picking output " << idx << ", amount " << print_money(td_copy.amount()));
     tx.selected_transfers.push_back(idx);
+    uint64_t available_amount = td_copy.amount();
     accumulated_outputs += available_amount;
+    LOG_PRINT_L2("Picking output " << idx << ", amount " << print_money(td_copy.amount()));
+
 
 	//------------------------------
 
