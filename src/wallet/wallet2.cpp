@@ -11478,10 +11478,9 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
     tx.selected_transfers.push_back(idx);
     uint64_t available_amount = td_copy.amount();
     accumulated_outputs += available_amount;
-	// ...
 
-    LOG_PRINT_L2("Picking output " << idx << ", amount " << print_money(td.amount()));
-
+    LOG_PRINT_L2("Picking output " << idx << ", amount " << print_money(td_copy.amount()));
+	//---------------
     // add this output to the list to spend
     //tx.selected_transfers.push_back(idx);
     //uint64_t available_amount = td.amount();
