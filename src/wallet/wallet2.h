@@ -351,30 +351,34 @@ private:
       uint64_t amount() const { return m_amount; }
       const crypto::public_key get_public_key() const {
         // Додаємо перевірку на порожній вектор на самому початку.
-        // Якщо m_tx.vout порожній, це означає, що дані пошкоджені.
         THROW_WALLET_EXCEPTION_IF(m_tx.vout.empty(),
           error::wallet_internal_error, "Transaction output vector is empty, data is corrupted.");
 
-        // --- ПОЧАТОК НОВИХ ЛОГІВ ---
+        // --- ПОЧАТОК ЛОГІВ ---
         LOG_ERROR("DEBUG: Entering get_public_key(), m_block_height: " << m_block_height);
         LOG_ERROR("DEBUG: m_tx.vout size: " << m_tx.vout.size());
         LOG_ERROR("DEBUG: m_internal_output_index: " << m_internal_output_index);
-        // --- КІНЕЦЬ НОВИХ ЛОГІВ ---
+        // --- КІНЕЦЬ ЛОГІВ ---
 
         crypto::public_key output_public_key;
+
+        // Спеціальна логіка для виходів з генезис-блоку.
+        // У ньому завжди лише один вихід з індексом 0.
         if (m_block_height == 0) {
-          THROW_WALLET_EXCEPTION_IF(!get_output_public_key(m_tx.vout[0], output_public_key),
-            error::wallet_internal_error, "Unable to get output public key from genesis output");
+            // Отримуємо публічний ключ напряму, без використання загальної функції.
+            const cryptonote::txout_to_key& out_key = boost::get<cryptonote::txout_to_key>(m_tx.vout[0]);
+            output_public_key = out_key.key;
         } else {
-          THROW_WALLET_EXCEPTION_IF(m_internal_output_index >= m_tx.vout.size(),
-            error::wallet_internal_error, "Internal output index is out of bounds.");
+            // Загальна логіка для всіх інших виходів.
+            THROW_WALLET_EXCEPTION_IF(m_internal_output_index >= m_tx.vout.size(),
+              error::wallet_internal_error, "Internal output index is out of bounds.");
 
-          THROW_WALLET_EXCEPTION_IF(!get_output_public_key(m_tx.vout[m_internal_output_index], output_public_key),
-            error::wallet_internal_error, "Unable to get output public key from output");
+            const cryptonote::txout_to_key& out_key = boost::get<cryptonote::txout_to_key>(m_tx.vout[m_internal_output_index]);
+            output_public_key = out_key.key;
         }
+    
         return output_public_key;
-      }
-
+    }
 
 //      const crypto::public_key get_public_key() const {
 //        if (m_block_height == 0) {
