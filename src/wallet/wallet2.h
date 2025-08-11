@@ -360,27 +360,20 @@ private:
         LOG_ERROR("DEBUG: m_internal_output_index: " << m_internal_output_index);
         // --- КІНЕЦЬ ЛОГІВ ---
 
-        const cryptonote::tx_out& tx_out_variant = (m_block_height == 0) 
+        const cryptonote::tx_out& tx_out = (m_block_height == 0) 
             ? m_tx.vout[0] 
             : m_tx.vout[m_internal_output_index];
     
-        // Перевіряємо, чи варіант містить потрібний тип
-        if (tx_out_variant.which() == 
-            boost::variant<
-              cryptonote::txout_to_key, 
-              cryptonote::txout_to_script
-            >::type_to_index<cryptonote::txout_to_key>::value) 
-        {
-            // Прямий доступ до даних, щоб обійти помилки компілятора
-            return reinterpret_cast<const cryptonote::txout_to_key*>(
-                tx_out_variant.content_address()
-            )->key;
-        } else {
-            THROW_WALLET_EXCEPTION_IF(true, 
-              error::wallet_internal_error, "Output is not of type txout_to_key.");
-        }
+        // Прямий доступ до даних, щоб обійти помилки компілятора
+        const cryptonote::txout_to_key* out_key_ptr = reinterpret_cast<const cryptonote::txout_to_key*>(
+            (const char*)&tx_out.target + tx_out.target.which() * sizeof(cryptonote::txout_to_key)
+        );
+    
+        // Перевіряємо, чи отримано дійсний вказівник
+        THROW_WALLET_EXCEPTION_IF(!out_key_ptr,
+          error::wallet_internal_error, "Output is not of type txout_to_key.");
 
-        return crypto::null_pkey;
+        return out_key_ptr->key;
     }
 //      const crypto::public_key get_public_key() const {
 //        if (m_block_height == 0) {
