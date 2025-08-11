@@ -9493,59 +9493,19 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
   {
     sources.resize(sources.size()+1);
     cryptonote::tx_source_entry& src = sources.back();
-    //const transfer_details& td = m_transfers[idx];
-
-	//------------------
-	transfer_details td = m_transfers[idx];
-	if (td.m_block_height == 0) {
-        src.amount = td.amount();
-        src.rct = td.is_rct();
-        
-        // Тут ми використовуємо key_image безпосередньо.
-        // Це вирішує проблему з нульовим public_key.
-        cryptonote::txin_to_key real_txin_to_key;
-        real_txin_to_key.amount = td.amount();
-        real_txin_to_key.k_image = td.m_key_image;
-
-        // Тут ми заповнюємо `real_txin_to_key` з правильним key_image
-        // і додаємо його до `sources`.
-        // Це замінює складну логіку з `get_public_key`.
-        // Але оскільки вихід з 0 блоку - unmixable, у нього не буде fake outputs,
-        // тому ми повинні імітувати їх додавання.
-        // Заповнюємо `src.outputs` одним реальним виходом з фіктивним зміщенням.
-        src.outputs.resize(1);
-        src.outputs[0].first = td.m_global_output_index;
-        src.outputs[0].second.dest = rct::pk2rct(td.m_tx_pub_key); // або інший спосіб отримати ключ
-        src.real_out_tx_key = td.m_tx_pub_key;
-        src.real_output = 0;
-        src.real_output_in_tx_index = 0;
-        // ...
-        continue;
-    }
-	//----------------------------
+    transfer_details td = m_transfers[idx];
 
     src.amount = td.amount();
     src.rct = td.is_rct();
-
-	// ----- ПОЧАТОК ВИПРАВЛЕНЬ -----
-    // Перевіряємо, чи є вихід unmixable (з 0-го блоку)
-    size_t internal_output_index = td.m_internal_output_index;
-    if (td.m_block_height == 0) {
-       // Для unmixable-виходів індекс завжди має бути 0
-       internal_output_index = 0;
-       LOG_ERROR("DEBUG: Correcting m_internal_output_index for block 0 to " << internal_output_index);
-    }
-    // ----- КІНЕЦЬ ВИПРАВЛЕНЬ -----
+    src.real_output_in_tx_index = td.m_internal_output_index;
 
     //paste keys (fake and real)
-
     for (size_t n = 0; n < fake_outputs_count + 1; ++n)
     {
       tx_output_entry oe;
       oe.first = std::get<0>(outs[out_index][n]);
       oe.second.dest = rct::pk2rct(std::get<1>(outs[out_index][n]));
       oe.second.mask = std::get<2>(outs[out_index][n]);
-
       src.outputs.push_back(oe);
       ++i;
     }
@@ -9560,26 +9520,25 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 
     tx_output_entry real_oe;
     real_oe.first = td.m_global_output_index;
-    //real_oe.second.dest = rct::pk2rct(td.get_public_key());
 
-	//-------------------
-	crypto::public_key output_key;
+    // ---- ПОЧАТОК ВИПРАВЛЕНЬ ----
+    crypto::public_key output_key;
     if (td.m_block_height == 0) {
-        // Це виплата з генезис-блоку. Для неї не потрібен публічний ключ,
-        // оскільки ми вже маємо key_image. Просто встановлюємо нульовий ключ.
-        output_key = crypto::null_pkey;
+      // Для виплати з генезис-блоку ми використовуємо key_image безпосередньо.
+      // Немає потреби отримувати публічний ключ з vout, оскільки він відсутній.
+      output_key = crypto::null_pkey;
     } else {
-        // Для всіх інших виходів використовуємо стандартну логіку.
-        output_key = td.get_public_key();
+      // Для всіх інших виходів використовуємо стандартну логіку.
+      output_key = td.get_public_key();
     }
-	//--------------------
-	  
+    // ---- КІНЕЦЬ ВИПРАВЛЕНЬ ----
+    
+    real_oe.second.dest = rct::pk2rct(output_key);
     real_oe.second.mask = rct::commit(td.amount(), td.m_mask);
     *it_to_replace = real_oe;
     src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
     src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
     src.real_output = it_to_replace - src.outputs.begin();
-    src.real_output_in_tx_index = td.m_internal_output_index;
     src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
     detail::print_source_entry(src);
     ++out_index;
@@ -9623,11 +9582,11 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
     return true;
   });
   THROW_WALLET_EXCEPTION_IF(!all_are_txin_to_key, error::unexpected_txin_type, tx);
-  
-  
+
+
   bool dust_sent_elsewhere = (dust_policy.addr_for_dust.m_view_public_key != change_dts.addr.m_view_public_key
-                                || dust_policy.addr_for_dust.m_spend_public_key != change_dts.addr.m_spend_public_key);
-  
+                               || dust_policy.addr_for_dust.m_spend_public_key != change_dts.addr.m_spend_public_key);
+
   if (dust_policy.add_to_fee || dust_sent_elsewhere) change_dts.amount -= dust;
 
   ptx.key_images = key_images;
