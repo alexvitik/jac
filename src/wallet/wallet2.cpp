@@ -9500,22 +9500,25 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
     src.real_output_in_tx_index = td.m_internal_output_index;
     
     // ---- ПОЧАТОК КРИТИЧНОГО ВИПРАВЛЕННЯ ----
-    // Спеціальна обробка для виходу з генезис-блоку, оскільки він має унікальні характеристики
+    // Спеціальна обробка для виходу з блоку 0
     if (td.m_block_height == 0) {
-        // Для генезис-виходу не потрібні "фальшиві" виходи, оскільки його не можна змішати.
-        // Заповнюємо 'src' без публічного ключа, який призводить до збою.
-        tx_output_entry real_oe;
-        real_oe.first = td.m_global_output_index;
-        real_oe.second.dest = rct::pk2rct(crypto::null_pkey); // Ініціалізуємо нульовим ключем
-        real_oe.second.mask = rct::commit(td.amount(), rct::identity()); // Використовуємо ідентифікатор для до-RingCT
-        src.outputs.push_back(real_oe);
-        src.real_out_tx_key = td.m_tx_pub_key;
-        src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
-        src.real_output = 0;
-        src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
-        detail::print_source_entry(src);
-        out_index++;
-        continue;
+      // Для виплати з блоку 0 використовуємо існуючий key_image
+      src.real_output = 0;
+      src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
+
+      // Логіка для створення tx_source_entry
+      tx_output_entry real_oe;
+      real_oe.first = td.m_global_output_index;
+      real_oe.second.dest = rct::pk2rct(crypto::null_pkey);
+      real_oe.second.mask = rct::commit(td.amount(), rct::identity());
+      src.outputs.push_back(real_oe);
+
+      src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
+      src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
+
+      detail::print_source_entry(src);
+      out_index++;
+      continue;
     }
     // ---- КІНЕЦЬ КРИТИЧНОГО ВИПРАВЛЕННЯ ----
 
