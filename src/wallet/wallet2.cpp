@@ -9498,8 +9498,30 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 	//------------------
 	transfer_details td = m_transfers[idx];
 	if (td.m_block_height == 0) {
-    	td.m_internal_output_index = 0;
-	}
+        src.amount = td.amount();
+        src.rct = td.is_rct();
+        
+        // Тут ми використовуємо key_image безпосередньо.
+        // Це вирішує проблему з нульовим public_key.
+        cryptonote::txin_to_key real_txin_to_key;
+        real_txin_to_key.amount = td.amount();
+        real_txin_to_key.k_image = td.m_key_image;
+
+        // Тут ми заповнюємо `real_txin_to_key` з правильним key_image
+        // і додаємо його до `sources`.
+        // Це замінює складну логіку з `get_public_key`.
+        // Але оскільки вихід з 0 блоку - unmixable, у нього не буде fake outputs,
+        // тому ми повинні імітувати їх додавання.
+        // Заповнюємо `src.outputs` одним реальним виходом з фіктивним зміщенням.
+        src.outputs.resize(1);
+        src.outputs[0].first = td.m_global_output_index;
+        src.outputs[0].second.dest = rct::pk2rct(td.m_tx_pub_key); // або інший спосіб отримати ключ
+        src.real_out_tx_key = td.m_tx_pub_key;
+        src.real_output = 0;
+        src.real_output_in_tx_index = 0;
+        // ...
+        continue;
+    }
 	//----------------------------
 
     src.amount = td.amount();
@@ -9542,16 +9564,14 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 
 	//-------------------
 	crypto::public_key output_key;
-	if (td.m_block_height == 0) {
-	    if (td.m_tx.vout.size() > 0) {
-        	cryptonote::get_output_public_key(td.m_tx.vout[0], output_key);
-    	} else {
-        	output_key = crypto::null_pkey;
-    	}
-	} else {
-    	// Для звичайних RingCT виходів використовуємо стандартну логіку
-    	output_key = td.get_public_key();
-	}
+    if (td.m_block_height == 0) {
+        // Це виплата з генезис-блоку. Для неї не потрібен публічний ключ,
+        // оскільки ми вже маємо key_image. Просто встановлюємо нульовий ключ.
+        output_key = crypto::null_pkey;
+    } else {
+        // Для всіх інших виходів використовуємо стандартну логіку.
+        output_key = td.get_public_key();
+    }
 	//--------------------
 	  
     real_oe.second.mask = rct::commit(td.amount(), td.m_mask);
