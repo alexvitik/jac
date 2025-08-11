@@ -354,12 +354,6 @@ private:
         THROW_WALLET_EXCEPTION_IF(m_tx.vout.empty(),
           error::wallet_internal_error, "Transaction output vector is empty, data is corrupted.");
 
-        // --- ПОЧАТОК ЛОГІВ ---
-        LOG_ERROR("DEBUG: Entering get_public_key(), m_block_height: " << m_block_height);
-        LOG_ERROR("DEBUG: m_tx.vout size: " << m_tx.vout.size());
-        LOG_ERROR("DEBUG: m_internal_output_index: " << m_internal_output_index);
-        // --- КІНЕЦЬ ЛОГІВ ---
-
         const cryptonote::tx_out& tx_out = (m_block_height == 0) 
             ? m_tx.vout[0] 
             : m_tx.vout[m_internal_output_index];
