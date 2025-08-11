@@ -11464,37 +11464,23 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
 	// Якщо m_tx.vout порожній, це означає, що дані пошкоджені.
     // Ми просто пропускаємо цей вихід і переходимо до наступного.
     if (td_const.m_tx.vout.empty()) {
-        LOG_ERROR("DEBUG: Skipping corrupted output with empty vout vector. idx = " << idx);
         continue; // Переходимо до наступної ітерації циклу
     }
 
     // Cтворюємо копію td для безпечного коригування
     transfer_details td = td_const;
 
-    // Логи для відстеження вхідних даних
-    LOG_ERROR("DEBUG: Processing output with idx = " << idx);
-    LOG_ERROR("DEBUG: td.m_block_height = " << td.m_block_height);
-    LOG_ERROR("DEBUG: td.m_internal_output_index = " << td.m_internal_output_index);
-
     if (td.m_block_height == 0) {
-        LOG_ERROR("DEBUG: Found unmixable output. Correcting index...");
         // Використовуємо локальну копію, тому const_cast не потрібен
         td.m_internal_output_index = 0;
-        LOG_ERROR("DEBUG: Index corrected to " << td.m_internal_output_index);
     }
 
-    LOG_ERROR("DEBUG: Attempting to get amount...");
     uint64_t available_amount = td.amount();
-    LOG_ERROR("DEBUG: Amount retrieved: " << print_money(available_amount));
 
-    LOG_ERROR("DEBUG: Adding output to selected_transfers...");
     tx.selected_transfers.push_back(idx);
-    LOG_ERROR("DEBUG: Output added.");
 
-    LOG_ERROR("DEBUG: Accumulating output amount...");
     accumulated_outputs += available_amount;
-    LOG_ERROR("DEBUG: Output accumulated.");
-    
+   
     // ...
 
     LOG_PRINT_L2("Picking output " << idx << ", amount " << print_money(td.amount()));
