@@ -11459,6 +11459,7 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
     //const transfer_details &td = m_transfers[idx];
 
 	// -----------------------
+	LOG_ERROR("SWEEP_CHECKING_KEY: Processing transfer index: " << idx << "...");
     const transfer_details &td_const = m_transfers[idx];
 	// Якщо m_tx.vout порожній, це означає, що дані пошкоджені.
     // Ми просто пропускаємо цей вихід і переходимо до наступного.
