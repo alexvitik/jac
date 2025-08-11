@@ -3963,7 +3963,7 @@ void wallet2::process_genesis_block_reward(const cryptonote::block& b)
 				crypto::generate_key_image(output_public_key, m_account.get_keys().m_spend_secret_key, key_image);
                 td.m_key_image = key_image;
                 td.m_key_image_known = true; 
-				LOG_ERROR("GENESIS_KEY_IMAGE: " << epee::to_hex::dump(std::string((const char*)&key_image, sizeof(key_image))));
+				LOG_ERROR("GENESIS_KEY_IMAGE: " << epee::to_hex::string(std::string((const char*)&key_image, sizeof(key_image))));
 
                 m_transfers.push_back(td);
 
