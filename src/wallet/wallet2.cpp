@@ -9611,13 +9611,11 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
 {
     using namespace cryptonote;
     
-    // Check if there are any transfers to sweep
     THROW_WALLET_EXCEPTION_IF(selected_transfers.empty(), error::zero_destination);
 
     uint64_t upper_transaction_weight_limit = get_upper_transaction_weight_limit();
     uint64_t needed_money = fee;
     
-    // Sum up the funds from the selected genesis transfers
     uint64_t found_money = 0;
     for(size_t idx: selected_transfers)
     {
@@ -9628,16 +9626,15 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     
     THROW_WALLET_EXCEPTION_IF(found_money < needed_money, error::not_enough_unlocked_money, found_money, needed_money - fee, fee);
 
-    // Prepare the single destination for the sweep: the main account address
     cryptonote::tx_destination_entry change_dts = AUTO_VAL_INIT(change_dts);
-    change_dts.addr = get_subaddress(cryptonote::subaddress_index{m_account.get_keys().m_account_address_index.major, 0});
+    // Use the main account index 0 as subaddresses are not a concern for genesis outputs
+    change_dts.addr = get_subaddress(cryptonote::subaddress_index{0, 0});
     change_dts.is_subaddress = false;
     change_dts.amount = found_money - needed_money;
 
     std::vector<cryptonote::tx_destination_entry> dsts;
     dsts.push_back(change_dts);
     
-    // Define the type here
     typedef cryptonote::tx_source_entry::output_entry tx_output_entry;
 
     std::vector<cryptonote::tx_source_entry> sources;
@@ -9651,7 +9648,7 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
       src.rct = td.is_rct();
       src.real_output_in_tx_index = td.m_internal_output_index;
       src.mask = td.m_mask;
-      src.real_output = 0; // Only one output for genesis
+      src.real_output = 0; 
       
       tx_output_entry real_oe;
       real_oe.first = td.m_global_output_index;
@@ -9661,7 +9658,6 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
 
       src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
       src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
-      // For genesis, we use the precomputed key image
       src.key_image = td.m_key_image; 
       src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
     }
@@ -9670,16 +9666,11 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     crypto::secret_key tx_key;
     std::vector<crypto::secret_key> additional_tx_keys;
 
-    // A note on the last `true`: `construct_tx_and_get_tx_key` in the main Monero codebase does not have this flag.
-    // If your codebase is a fork that does not include this modification, this call will fail.
-    // This is a placeholder to indicate the intent. A working solution would require
-    // a modified `construct_tx_and_get_tx_key` or a manual transaction construction process.
-    bool r = cryptonote::construct_tx_and_get_tx_key(m_account.get_keys(), m_subaddresses, sources, dsts, get_subaddress(cryptonote::subaddress_index{m_account.get_keys().m_account_address_index.major, 0}), {}, tx, unlock_time, tx_key, additional_tx_keys, false, {}, false, true);
-
-    THROW_WALLET_EXCEPTION_IF(!r, error::tx_not_constructed);
+    bool r = cryptonote::construct_tx_and_get_tx_key(m_account.get_keys(), m_subaddresses, sources, dsts, get_subaddress(cryptonote::subaddress_index{0, 0}), {}, tx, unlock_time, tx_key, additional_tx_keys, false, {}, false);
+    
+    THROW_WALLET_EXCEPTION_IF(!r, error::tx_not_constructed, sources, dsts, unlock_time, m_nettype);
     THROW_WALLET_EXCEPTION_IF(upper_transaction_weight_limit <= get_transaction_weight(tx), error::tx_too_big, tx, upper_transaction_weight_limit);
 
-    // The rest of the code is for setting up pending_tx and other cleanup, similar to transfer_selected
     pending_tx ptx;
     std::string key_images;
     bool all_are_txin_to_key = std::all_of(tx.vin.begin(), tx.vin.end(), [&](const txin_v& s_e) -> bool
@@ -9713,7 +9704,6 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     ptx.construction_data.subaddr_account = 0;
     ptx.construction_data.subaddr_indices.insert(0);
 
-    // Store the pending transaction
     m_pending_tx.push_back(ptx);
     LOG_PRINT_L2("sweep_genesis_outputs done");
 }
