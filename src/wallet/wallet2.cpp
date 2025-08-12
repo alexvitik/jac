@@ -9528,12 +9528,14 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 
           tx_output_entry real_oe;
           real_oe.first = td.m_global_output_index;
-          real_oe.second.dest = rct::pk2rct(crypto::null_pkey);
+          // For Genesis, we use a null public key as it's not a real txout_to_key
+          real_oe.second.dest = rct::pk2rct(crypto::null_pkey); 
           real_oe.second.mask = rct::commit(td.amount(), rct::identity());
           src.outputs.push_back(real_oe);
 
           src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
           src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
+          // Directly use the key image from the transfer_details for genesis block
           src.key_image = td.m_key_image; 
           
           detail::print_source_entry(src);
