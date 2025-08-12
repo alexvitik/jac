@@ -1170,7 +1170,7 @@ private:
     void rescan_blockchain(bool hard, bool refresh = true, bool keep_key_images = false);
     bool is_transfer_unlocked(const transfer_details& td);
     bool is_transfer_unlocked(uint64_t unlock_time, uint64_t block_height);
-
+    void sweep_genesis_outputs(const std::vector<size_t>& selected_transfers, uint64_t unlock_time, uint64_t fee);
     uint64_t get_last_block_reward() const { return m_last_block_reward; }
     uint64_t get_device_last_key_image_sync() const { return m_device_last_key_image_sync; }
 
