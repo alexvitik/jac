@@ -9509,7 +9509,7 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
   // Об'єднуємо обидва списки в одну послідовність для коректної обробки
   std::vector<size_t> all_transfers = genesis_transfers;
   all_transfers.insert(all_transfers.end(), non_genesis_transfers.begin(), non_genesis_transfers.end());
-  
+
   // Тепер обробляємо всі транзакції в одному циклі
   for(size_t idx: all_transfers)
   {
@@ -9536,22 +9536,22 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
           src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
           src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
 
+          src.key_image = td.m_key_image; 
+
           // Логи для перевірки даних
           LOG_ERROR("GENESIS_TX_PREP: output key = " << src.outputs[0].second.dest);
           LOG_ERROR("GENESIS_TX_PREP: amount = " << src.amount);
           LOG_ERROR("GENESIS_TX_PREP: real_output = " << src.real_output);
           LOG_ERROR("GENESIS_TX_PREP: real_out_tx_key = " << src.real_out_tx_key);
-          
+          LOG_ERROR("GENESIS_TX_PREP: key_image = " << src.key_image);
+
           detail::print_source_entry(src);
-          // ПРОПУСКАЄМО виклик key_image_helper і використовуємо збережений key image
-          // Це і є головне виправлення
-          src.key_image = td.m_key_image; 
-          continue; // пропускаємо решту коду, яка відноситься до звичайних транзакцій
+          continue;
       }
-      
+
       // Логіка для звичайних транзакцій
       THROW_WALLET_EXCEPTION_IF(outs.empty(), error::wallet_internal_error, "Failed to get real outputs for non-genesis transfers");
-      
+
       for (size_t n = 0; n < fake_outputs_count + 1; ++n)
       {
           tx_output_entry oe;
@@ -9560,18 +9560,18 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
           oe.second.mask = std::get<2>(outs[outs_idx][n]);
           src.outputs.push_back(oe);
       }
-      
+
       auto it_to_replace = std::find_if(src.outputs.begin(), src.outputs.end(), [&](const tx_output_entry& a)
       {
           return a.first == td.m_global_output_index;
       });
       THROW_WALLET_EXCEPTION_IF(it_to_replace == src.outputs.end(), error::wallet_internal_error, "real output not found");
-      
+
       tx_output_entry real_oe;
       real_oe.first = td.m_global_output_index;
-      
+
       crypto::public_key output_key = td.get_public_key();
-      
+
       real_oe.second.dest = rct::pk2rct(output_key);
       real_oe.second.mask = rct::commit(td.amount(), td.m_mask);
       *it_to_replace = real_oe;
