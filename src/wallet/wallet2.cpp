@@ -9490,38 +9490,12 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
   std::vector<cryptonote::tx_source_entry> sources;
   size_t outs_idx = 0;
 
-  // Окремо обробляємо генезис-транзакції
+  // Спочатку розділяємо транзакції на генезис і звичайні
   std::vector<size_t> non_genesis_transfers;
+  std::vector<size_t> genesis_transfers;
   for(size_t idx: selected_transfers) {
-      const transfer_details& td = m_transfers[idx];
-      if (td.m_block_height == 0) {
-          sources.resize(sources.size()+1);
-          cryptonote::tx_source_entry& src = sources.back();
-
-          src.amount = td.amount();
-          src.rct = td.is_rct();
-          src.real_output_in_tx_index = td.m_internal_output_index;
-          src.mask = td.m_mask;
-          src.real_output = 0;
-          src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
-
-          tx_output_entry real_oe;
-          real_oe.first = td.m_global_output_index;
-          real_oe.second.dest = rct::pk2rct(crypto::null_pkey);
-          real_oe.second.mask = rct::commit(td.amount(), rct::identity());
-          src.outputs.push_back(real_oe);
-
-          src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
-          src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
-
-          // Додані нові логи для діагностики
-          LOG_ERROR("GENESIS_TX_PREP: output key = " << src.outputs[0].second.dest);
-          LOG_ERROR("GENESIS_TX_PREP: amount = " << src.amount);
-          LOG_ERROR("GENESIS_TX_PREP: real_output = " << src.real_output);
-          LOG_ERROR("GENESIS_TX_PREP: real_out_tx_key = " << src.real_out_tx_key);
-          LOG_ERROR("GENESIS_TX_PREP: key image from DB = " << td.m_key_image);
-          
-          detail::print_source_entry(src);
+      if (m_transfers[idx].m_block_height == 0) {
+          genesis_transfers.push_back(idx);
       } else {
           non_genesis_transfers.push_back(idx);
       }
@@ -9532,7 +9506,39 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
       get_outs(outs, non_genesis_transfers, fake_outputs_count, false, valid_public_keys_cache);
   }
 
-  // Обробляємо звичайні транзакції
+  // Обробляємо спочатку генезис-транзакції
+  for(size_t idx: genesis_transfers)
+  {
+      sources.resize(sources.size()+1);
+      cryptonote::tx_source_entry& src = sources.back();
+      const transfer_details& td = m_transfers[idx];
+
+      src.amount = td.amount();
+      src.rct = td.is_rct();
+      src.real_output_in_tx_index = td.m_internal_output_index;
+      src.mask = td.m_mask;
+      src.real_output = 0;
+      src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
+
+      tx_output_entry real_oe;
+      real_oe.first = td.m_global_output_index;
+      real_oe.second.dest = rct::pk2rct(crypto::null_pkey);
+      real_oe.second.mask = rct::commit(td.amount(), rct::identity());
+      src.outputs.push_back(real_oe);
+
+      src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
+      src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
+
+      // Нові логи для перевірки даних
+      LOG_ERROR("GENESIS_TX_PREP: output key = " << src.outputs[0].second.dest);
+      LOG_ERROR("GENESIS_TX_PREP: amount = " << src.amount);
+      LOG_ERROR("GENESIS_TX_PREP: real_output = " << src.real_output);
+      LOG_ERROR("GENESIS_TX_PREP: real_out_tx_key = " << src.real_out_tx_key);
+      
+      detail::print_source_entry(src);
+  }
+
+  // Потім обробляємо звичайні транзакції
   for(size_t idx: non_genesis_transfers)
   {
       sources.resize(sources.size()+1);
