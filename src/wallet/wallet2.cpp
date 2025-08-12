@@ -9580,13 +9580,13 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
           src.real_output = it_to_replace - src.outputs.begin();
           src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
           
-          // Для звичайних виходів, які не є генезисом, ми обчислюємо key image
-          crypto::key_image ki;
-          if(!cryptonote::generate_key_image(m_account.get_keys(), td.m_subaddr_index, output_key, src.real_out_tx_key, src.real_out_additional_tx_keys, src.real_output_in_tx_index, ki))
+          // Викликаємо generate_key_image_helper для звичайних виходів
+          // з правильними параметрами, які вже доступні
+          if(!cryptonote::generate_key_image_helper(m_account.get_keys(), m_account.get_subaddress_view_key(td.m_subaddr_account, td.m_subaddr_index), 
+              output_key, src.real_out_tx_key, src.real_out_additional_tx_keys, src.real_output_in_tx_index, src.key_image, hwdev))
           {
              THROW_WALLET_EXCEPTION_IF(true, error::wallet_internal_error, "Key image generation failed!");
           }
-          src.key_image = ki;
           
           detail::print_source_entry(src);
           ++outs_idx;
