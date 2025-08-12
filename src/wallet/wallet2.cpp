@@ -9489,36 +9489,19 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
   typedef cryptonote::tx_source_entry::output_entry tx_output_entry;
   std::vector<cryptonote::tx_source_entry> sources;
   size_t outs_idx = 0;
-  
+
+  // Окремо обробляємо генезис-транзакції
   std::vector<size_t> non_genesis_transfers;
-  std::vector<size_t> genesis_transfers;
   for(size_t idx: selected_transfers) {
-      if (m_transfers[idx].m_block_height == 0) {
-          genesis_transfers.push_back(idx);
-      } else {
-          non_genesis_transfers.push_back(idx);
-      }
-  }
-
-  if (!non_genesis_transfers.empty()) {
-      get_outs(outs, non_genesis_transfers, fake_outputs_count, false, valid_public_keys_cache);
-  }
-
-  std::vector<size_t> all_transfers = genesis_transfers;
-  all_transfers.insert(all_transfers.end(), non_genesis_transfers.begin(), non_genesis_transfers.end());
-  
-  for(size_t idx: all_transfers)
-  {
-      sources.resize(sources.size()+1);
-      cryptonote::tx_source_entry& src = sources.back();
       const transfer_details& td = m_transfers[idx];
-
-      src.amount = td.amount();
-      src.rct = td.is_rct();
-      src.real_output_in_tx_index = td.m_internal_output_index;
-      src.mask = td.m_mask;
-
       if (td.m_block_height == 0) {
+          sources.resize(sources.size()+1);
+          cryptonote::tx_source_entry& src = sources.back();
+
+          src.amount = td.amount();
+          src.rct = td.is_rct();
+          src.real_output_in_tx_index = td.m_internal_output_index;
+          src.mask = td.m_mask;
           src.real_output = 0;
           src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
 
@@ -9532,10 +9515,29 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
           src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
 
           detail::print_source_entry(src);
-          continue;
+      } else {
+          non_genesis_transfers.push_back(idx);
       }
+  }
+
+  // Отримуємо "фальшиві" виходи тільки для звичайних транзакцій
+  if (!non_genesis_transfers.empty()) {
+      get_outs(outs, non_genesis_transfers, fake_outputs_count, false, valid_public_keys_cache);
+  }
+
+  // Обробляємо звичайні транзакції
+  for(size_t idx: non_genesis_transfers)
+  {
+      sources.resize(sources.size()+1);
+      cryptonote::tx_source_entry& src = sources.back();
+      const transfer_details& td = m_transfers[idx];
+
+      src.amount = td.amount();
+      src.rct = td.is_rct();
+      src.real_output_in_tx_index = td.m_internal_output_index;
+      src.mask = td.m_mask;
       
-      THROW_WALLET_EXCEPTION_IF(outs.empty(), error::wallet_internal_error, "Failed to get real outputs for non-genesis transfers");
+      THROW_WALLET_EXCEPTION_IF(outs_idx >= outs.size(), error::wallet_internal_error, "Failed to get real outputs for non-genesis transfers");
       
       for (size_t n = 0; n < fake_outputs_count + 1; ++n)
       {
