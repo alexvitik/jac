@@ -9489,18 +9489,18 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
   typedef cryptonote::tx_source_entry::output_entry tx_output_entry;
   std::vector<cryptonote::tx_source_entry> sources;
   size_t outs_idx = 0;
-  
+
   hw::device& hwdev = m_account.get_device();
 
-  // Отримуємо повний список субадресів гаманця
-  std::vector<cryptonote::subaddress_information> subaddresses_list;
-  m_account.get_subaddresses(0, subaddresses_list); // припускаємо, що get_subaddresses існує
+  // Create the subaddresses map from the wallet's internal data.
+  // We'll iterate through the known subaddresses to populate the map required by generate_key_image_helper.
   std::unordered_map<crypto::public_key, cryptonote::subaddress_index> subaddresses;
-  for (const auto& subaddr_info : subaddresses_list) {
-      subaddresses[subaddr_info.m_address.m_spend_public_key] = subaddr_info.m_index;
+  for (const auto& pair : m_subaddresses)
+  {
+      subaddresses[pair.second.get_keys().m_account_address.m_spend_public_key] = pair.first;
   }
   
-  // Спочатку створюємо списки для звичайних і генезис-транзакцій
+  // Sort transfers by type to handle genesis block separately
   std::vector<size_t> non_genesis_transfers;
   std::vector<size_t> genesis_transfers;
   for(size_t idx: selected_transfers) {
@@ -9511,16 +9511,16 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
       }
   }
 
-  // Отримуємо "фальшиві" виходи тільки для звичайних транзакцій
+  // Get "fake" outputs for regular transactions
   if (!non_genesis_transfers.empty()) {
       get_outs(outs, non_genesis_transfers, fake_outputs_count, false, valid_public_keys_cache);
   }
 
-  // Об'єднуємо обидва списки в одну послідовність для коректної обробки
+  // Combine both lists for processing
   std::vector<size_t> all_transfers = genesis_transfers;
   all_transfers.insert(all_transfers.end(), non_genesis_transfers.begin(), non_genesis_transfers.end());
   
-  // Тепер обробляємо всі транзакції в одному циклі
+  // Process all transactions
   for(size_t idx: all_transfers)
   {
       sources.resize(sources.size()+1);
@@ -9534,7 +9534,7 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
       
       LOG_ERROR("DEBUG: Processing output with global index " << td.m_global_output_index << " and block height " << td.m_block_height);
 
-      // Якщо це генезис-транзакція
+      // Handle genesis transactions
       if (td.m_block_height == 0) {
           src.real_output = 0;
           src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
@@ -9549,15 +9549,9 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
           src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
           src.key_image = td.m_key_image; 
           
-          LOG_ERROR("GENESIS_TX_PREP: output key = " << src.outputs[0].second.dest);
-          LOG_ERROR("GENESIS_TX_PREP: amount = " << src.amount);
-          LOG_ERROR("GENESIS_TX_PREP: real_output = " << src.real_output);
-          LOG_ERROR("GENESIS_TX_PREP: real_out_tx_key = " << src.real_out_tx_key);
-          LOG_ERROR("GENESIS_TX_PREP: key_image = " << src.key_image);
-          
           detail::print_source_entry(src);
       }
-      // Якщо це звичайна транзакція
+      // Handle regular transactions
       else 
       {
           THROW_WALLET_EXCEPTION_IF(outs_idx >= outs.size(), error::wallet_internal_error, "Failed to get real outputs for non-genesis transfers");
@@ -9590,7 +9584,7 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
           src.real_output = it_to_replace - src.outputs.begin();
           src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
           
-          // Генеруємо key image за допомогою коректних параметрів
+          // Generate key image using the now-correctly populated subaddresses map
           cryptonote::keypair in_ephemeral;
           if(!cryptonote::generate_key_image_helper(m_account.get_keys(), subaddresses, output_key, src.real_out_tx_key, src.real_out_additional_tx_keys, src.real_output_in_tx_index, in_ephemeral, src.key_image, hwdev))
           {
