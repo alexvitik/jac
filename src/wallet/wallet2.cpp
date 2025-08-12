@@ -9484,95 +9484,93 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
   if (outs.empty())
     get_outs(outs, selected_transfers, fake_outputs_count, false, valid_public_keys_cache); // may throw
 
+  template<typename T>
+void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_entry>& dsts, const std::vector<size_t>& selected_transfers, size_t fake_outputs_count,
+  std::vector<std::vector<tools::wallet2::get_outs_entry>> &outs, std::unordered_set<crypto::public_key> &valid_public_keys_cache,
+  uint64_t unlock_time, uint64_t fee, const std::vector<uint8_t>& extra, T destination_split_strategy, const tx_dust_policy& dust_policy, cryptonote::transaction& tx, pending_tx &ptx,
+  bool use_view_tags)
+{
+  using namespace cryptonote;
+  // throw if attempting a transaction with no destinations
+  THROW_WALLET_EXCEPTION_IF(dsts.empty(), error::zero_destination);
+
+  THROW_WALLET_EXCEPTION_IF(m_multisig, error::wallet_internal_error, "Multisig wallets cannot spend non rct outputs");
+
+  uint64_t upper_transaction_weight_limit = get_upper_transaction_weight_limit();
+  uint64_t needed_money = fee;
+  LOG_PRINT_L2("transfer: starting with fee " << print_money (needed_money));
+
+  // calculate total amount being sent to all destinations
+  // throw if total amount overflows uint64_t
+  for(auto& dt: dsts)
+  {
+    THROW_WALLET_EXCEPTION_IF(0 == dt.amount, error::zero_amount);
+    needed_money += dt.amount;
+    LOG_PRINT_L2("transfer: adding " << print_money(dt.amount) << ", for a total of " << print_money (needed_money));
+    THROW_WALLET_EXCEPTION_IF(needed_money < dt.amount, error::tx_sum_overflow, dsts, fee, m_nettype);
+  }
+
+  uint64_t found_money = 0;
+  for(size_t idx: selected_transfers)
+  {
+    found_money += m_transfers[idx].amount();
+  }
+
+  LOG_PRINT_L2("wanted " << print_money(needed_money) << ", found " << print_money(found_money) << ", fee " << print_money(fee));
+  THROW_WALLET_EXCEPTION_IF(found_money < needed_money, error::not_enough_unlocked_money, found_money, needed_money - fee, fee);
+
+  uint32_t subaddr_account = m_transfers[*selected_transfers.begin()].m_subaddr_index.major;
+  for (auto i = ++selected_transfers.begin(); i != selected_transfers.end(); ++i)
+    THROW_WALLET_EXCEPTION_IF(subaddr_account != m_transfers[*i].m_subaddr_index.major, error::wallet_internal_error, "the tx uses funds from multiple accounts");
+
+  if (outs.empty())
+    get_outs(outs, selected_transfers, fake_outputs_count, false, valid_public_keys_cache); // may throw
+
   //prepare inputs
   LOG_PRINT_L2("preparing outputs");
   typedef cryptonote::tx_source_entry::output_entry tx_output_entry;
-  size_t outs_idx = 0;
+  size_t i = 0, out_index = 0;
   std::vector<cryptonote::tx_source_entry> sources;
-  
-  // Sort transfers by type to handle genesis block separately
-  std::vector<size_t> non_genesis_transfers;
-  std::vector<size_t> genesis_transfers;
-  for(size_t idx: selected_transfers) {
-      if (m_transfers[idx].m_block_height == 0) {
-          genesis_transfers.push_back(idx);
-      } else {
-          non_genesis_transfers.push_back(idx);
-      }
-  }
-
-  // Get "fake" outputs for regular transactions
-  if (!non_genesis_transfers.empty()) {
-      get_outs(outs, non_genesis_transfers, fake_outputs_count, false, valid_public_keys_cache);
-  }
-
-  // Process all transfers, prioritizing genesis for deterministic output ordering
-  std::vector<size_t> all_transfers = genesis_transfers;
-  all_transfers.insert(all_transfers.end(), non_genesis_transfers.begin(), non_genesis_transfers.end());
-
-  for(size_t idx: all_transfers)
+  for(size_t idx: selected_transfers)
   {
-      sources.resize(sources.size()+1);
-      cryptonote::tx_source_entry& src = sources.back();
-      const transfer_details& td = m_transfers[idx];
-      
-      src.amount = td.amount();
-      src.rct = td.is_rct();
-      src.real_output_in_tx_index = td.m_internal_output_index;
-      src.mask = td.m_mask;
+    sources.resize(sources.size()+1);
+    cryptonote::tx_source_entry& src = sources.back();
+    const transfer_details& td = m_transfers[idx];
+    src.amount = td.amount();
+    src.rct = td.is_rct();
+    //paste keys (fake and real)
 
-      // Special handling for genesis block (block 0)
-      if (td.m_block_height == 0) {
-          src.real_output = 0;
-          src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
+    for (size_t n = 0; n < fake_outputs_count + 1; ++n)
+    {
+      tx_output_entry oe;
+      oe.first = std::get<0>(outs[out_index][n]);
+      oe.second.dest = rct::pk2rct(std::get<1>(outs[out_index][n]));
+      oe.second.mask = std::get<2>(outs[out_index][n]);
 
-          tx_output_entry real_oe;
-          real_oe.first = td.m_global_output_index;
-          real_oe.second.dest = rct::pk2rct(crypto::null_pkey);
-          real_oe.second.mask = rct::commit(td.amount(), rct::identity());
-          src.outputs.push_back(real_oe);
+      src.outputs.push_back(oe);
+      ++i;
+    }
 
-          src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
-          src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
-          // For genesis, we use the precomputed key image
-          src.key_image = td.m_key_image; 
-          
-          detail::print_source_entry(src);
-      }
-      // Original logic for regular transactions
-      else {
-          THROW_WALLET_EXCEPTION_IF(outs_idx >= outs.size(), error::wallet_internal_error, "Failed to get real outputs for non-genesis transfers");
-          
-          // Paste keys (fake and real)
-          for (size_t n = 0; n < fake_outputs_count + 1; ++n)
-          {
-              tx_output_entry oe;
-              oe.first = std::get<0>(outs[outs_idx][n]);
-              oe.second.dest = rct::pk2rct(std::get<1>(outs[outs_idx][n]));
-              oe.second.mask = std::get<2>(outs[outs_idx][n]);
+    //paste real transaction to the random index
+    auto it_to_replace = std::find_if(src.outputs.begin(), src.outputs.end(), [&](const tx_output_entry& a)
+    {
+      return a.first == td.m_global_output_index;
+    });
+    THROW_WALLET_EXCEPTION_IF(it_to_replace == src.outputs.end(), error::wallet_internal_error,
+        "real output not found");
 
-              src.outputs.push_back(oe);
-          }
-
-          // Paste real transaction to the random index
-          auto it_to_replace = std::find_if(src.outputs.begin(), src.outputs.end(), [&](const tx_output_entry& a)
-          {
-              return a.first == td.m_global_output_index;
-          });
-          THROW_WALLET_EXCEPTION_IF(it_to_replace == src.outputs.end(), error::wallet_internal_error, "real output not found");
-
-          tx_output_entry real_oe;
-          real_oe.first = td.m_global_output_index;
-          real_oe.second.dest = rct::pk2rct(td.get_public_key());
-          real_oe.second.mask = rct::commit(td.amount(), td.m_mask);
-          *it_to_replace = real_oe;
-          src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
-          src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
-          src.real_output = it_to_replace - src.outputs.begin();
-          src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
-          detail::print_source_entry(src);
-          ++outs_idx;
-      }
+    tx_output_entry real_oe;
+    real_oe.first = td.m_global_output_index;
+    real_oe.second.dest = rct::pk2rct(td.get_public_key());
+    real_oe.second.mask = rct::commit(td.amount(), td.m_mask);
+    *it_to_replace = real_oe;
+    src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
+    src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
+    src.real_output = it_to_replace - src.outputs.begin();
+    src.real_output_in_tx_index = td.m_internal_output_index;
+    src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
+    detail::print_source_entry(src);
+    ++out_index;
   }
   LOG_PRINT_L2("outputs prepared");
 
@@ -9613,11 +9611,11 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
     return true;
   });
   THROW_WALLET_EXCEPTION_IF(!all_are_txin_to_key, error::unexpected_txin_type, tx);
-
-
+  
+  
   bool dust_sent_elsewhere = (dust_policy.addr_for_dust.m_view_public_key != change_dts.addr.m_view_public_key
                                || dust_policy.addr_for_dust.m_spend_public_key != change_dts.addr.m_spend_public_key);
-
+  
   if (dust_policy.add_to_fee || dust_sent_elsewhere) change_dts.amount -= dust;
 
   ptx.key_images = key_images;
@@ -9648,6 +9646,114 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
   LOG_PRINT_L2("transfer_selected done");
 }
 
+// -------------------------------------------------------------------------------------------------------------------
+// NEW FUNCTION TO HANDLE GENESIS-SPECIFIC TRANSACTIONS
+// -------------------------------------------------------------------------------------------------------------------
+void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfers, uint64_t unlock_time, uint64_t fee)
+{
+    using namespace cryptonote;
+    
+    // Check if there are any transfers to sweep
+    THROW_WALLET_EXCEPTION_IF(selected_transfers.empty(), error::zero_destination);
+
+    uint64_t upper_transaction_weight_limit = get_upper_transaction_weight_limit();
+    uint64_t needed_money = fee;
+    
+    // Sum up the funds from the selected genesis transfers
+    uint64_t found_money = 0;
+    for(size_t idx: selected_transfers)
+    {
+      const transfer_details& td = m_transfers[idx];
+      THROW_WALLET_EXCEPTION_IF(td.m_block_height != 0, error::wallet_internal_error, "All selected transfers must be from the genesis block.");
+      found_money += td.amount();
+    }
+    
+    THROW_WALLET_EXCEPTION_IF(found_money < needed_money, error::not_enough_unlocked_money, found_money, needed_money - fee, fee);
+
+    // Prepare the single destination for the sweep: the main account address
+    cryptonote::tx_destination_entry change_dts = AUTO_VAL_INIT(change_dts);
+    change_dts.addr = get_subaddress({m_account.get_keys().m_account_address.m_subaddress_major, 0});
+    change_dts.is_subaddress = false;
+    change_dts.amount = found_money - needed_money;
+
+    std::vector<cryptonote::tx_destination_entry> dsts;
+    dsts.push_back(change_dts);
+    
+    std::vector<cryptonote::tx_source_entry> sources;
+    for(size_t idx: selected_transfers)
+    {
+      sources.resize(sources.size()+1);
+      cryptonote::tx_source_entry& src = sources.back();
+      const transfer_details& td = m_transfers[idx];
+      
+      src.amount = td.amount();
+      src.rct = td.is_rct();
+      src.real_output_in_tx_index = td.m_internal_output_index;
+      src.mask = td.m_mask;
+      src.real_output = 0; // Only one output for genesis
+      
+      tx_output_entry real_oe;
+      real_oe.first = td.m_global_output_index;
+      real_oe.second.dest = rct::pk2rct(crypto::null_pkey);
+      real_oe.second.mask = rct::commit(td.amount(), rct::identity());
+      src.outputs.push_back(real_oe);
+
+      src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
+      src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
+      // For genesis, we use the precomputed key image
+      src.key_image = td.m_key_image; 
+      src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
+    }
+
+    cryptonote::transaction tx;
+    crypto::secret_key tx_key;
+    std::vector<crypto::secret_key> additional_tx_keys;
+
+    // Use a simplified version of construct_tx_and_get_tx_key that doesn't generate key images
+    // because we've already set them.
+    bool r = cryptonote::construct_tx_and_get_tx_key(m_account.get_keys(), m_subaddresses, sources, dsts, get_subaddress({m_account.get_keys().m_account_address.m_subaddress_major, 0}), {}, tx, unlock_time, tx_key, additional_tx_keys, false, {}, false, true); // The last 'true' indicates pre-populated key images
+
+    THROW_WALLET_EXCEPTION_IF(!r, error::tx_not_constructed);
+    THROW_WALLET_EXCEPTION_IF(upper_transaction_weight_limit <= get_transaction_weight(tx), error::tx_too_big, tx, upper_transaction_weight_limit);
+
+    // The rest of the code is for setting up pending_tx and other cleanup, similar to transfer_selected
+    pending_tx ptx;
+    std::string key_images;
+    bool all_are_txin_to_key = std::all_of(tx.vin.begin(), tx.vin.end(), [&](const txin_v& s_e) -> bool
+    {
+      CHECKED_GET_SPECIFIC_VARIANT(s_e, const txin_to_key, in, false);
+      key_images += boost::to_string(in.k_image) + " ";
+      return true;
+    });
+    THROW_WALLET_EXCEPTION_IF(!all_are_txin_to_key, error::unexpected_txin_type, tx);
+
+    ptx.key_images = key_images;
+    ptx.fee = fee;
+    ptx.dust = 0;
+    ptx.dust_added_to_fee = false;
+    ptx.tx = tx;
+    ptx.change_dts = change_dts;
+    ptx.selected_transfers = selected_transfers;
+    ptx.tx_key = tx_key;
+    ptx.additional_tx_keys = additional_tx_keys;
+    ptx.dests = dsts;
+    ptx.construction_data.sources = sources;
+    ptx.construction_data.change_dts = change_dts;
+    ptx.construction_data.splitted_dsts = dsts;
+    ptx.construction_data.selected_transfers = selected_transfers;
+    ptx.construction_data.extra = tx.extra;
+    ptx.construction_data.unlock_time = unlock_time;
+    ptx.construction_data.use_rct = false;
+    ptx.construction_data.rct_config = { rct::RangeProofBorromean, 0 };
+    ptx.construction_data.use_view_tags = false;
+    ptx.construction_data.dests = dsts;
+    ptx.construction_data.subaddr_account = 0;
+    ptx.construction_data.subaddr_indices.insert(0);
+
+    // Store the pending transaction
+    m_pending_tx.push_back(ptx);
+    LOG_PRINT_L2("sweep_genesis_outputs done");
+}
 void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry> dsts, const std::vector<size_t>& selected_transfers, size_t fake_outputs_count,
   std::vector<std::vector<tools::wallet2::get_outs_entry>> &outs, std::unordered_set<crypto::public_key> &valid_public_keys_cache,
   uint64_t unlock_time, uint64_t fee, const std::vector<uint8_t>& extra, cryptonote::transaction& tx, pending_tx &ptx, const rct::RCTConfig &rct_config, bool use_view_tags)
