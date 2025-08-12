@@ -9487,18 +9487,8 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
   //prepare inputs
   LOG_PRINT_L2("preparing outputs");
   typedef cryptonote::tx_source_entry::output_entry tx_output_entry;
+  size_t i = 0, out_index = 0;
   std::vector<cryptonote::tx_source_entry> sources;
-  size_t outs_idx = 0;
-
-  hw::device& hwdev = m_account.get_device();
-
-  // Create the subaddresses map from the wallet's internal data.
-  // We'll iterate through the known subaddresses to populate the map required by generate_key_image_helper.
-  std::unordered_map<crypto::public_key, cryptonote::subaddress_index> subaddresses;
-  for (const auto& pair : m_subaddresses)
-  {
-      subaddresses[pair.second.get_keys().m_account_address.m_spend_public_key] = pair.first;
-  }
   
   // Sort transfers by type to handle genesis block separately
   std::vector<size_t> non_genesis_transfers;
@@ -9516,25 +9506,22 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
       get_outs(outs, non_genesis_transfers, fake_outputs_count, false, valid_public_keys_cache);
   }
 
-  // Combine both lists for processing
+  // Process all transfers, prioritizing genesis for deterministic output ordering
   std::vector<size_t> all_transfers = genesis_transfers;
   all_transfers.insert(all_transfers.end(), non_genesis_transfers.begin(), non_genesis_transfers.end());
-  
-  // Process all transactions
+
   for(size_t idx: all_transfers)
   {
       sources.resize(sources.size()+1);
       cryptonote::tx_source_entry& src = sources.back();
       const transfer_details& td = m_transfers[idx];
-
+      
       src.amount = td.amount();
       src.rct = td.is_rct();
       src.real_output_in_tx_index = td.m_internal_output_index;
       src.mask = td.m_mask;
-      
-      LOG_ERROR("DEBUG: Processing output with global index " << td.m_global_output_index << " and block height " << td.m_block_height);
 
-      // Handle genesis transactions
+      // Special handling for genesis block (block 0)
       if (td.m_block_height == 0) {
           src.real_output = 0;
           src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
@@ -9551,48 +9538,40 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
           
           detail::print_source_entry(src);
       }
-      // Handle regular transactions
-      else 
-      {
-          THROW_WALLET_EXCEPTION_IF(outs_idx >= outs.size(), error::wallet_internal_error, "Failed to get real outputs for non-genesis transfers");
+      // Original logic for regular transactions
+      else {
+          THROW_WALLET_EXCEPTION_IF(out_index >= outs.size(), error::wallet_internal_error, "Failed to get real outputs for non-genesis transfers");
           
+          // Paste keys (fake and real)
           for (size_t n = 0; n < fake_outputs_count + 1; ++n)
           {
               tx_output_entry oe;
-              oe.first = std::get<0>(outs[outs_idx][n]);
-              oe.second.dest = rct::pk2rct(std::get<1>(outs[outs_idx][n]));
-              oe.second.mask = std::get<2>(outs[outs_idx][n]);
+              oe.first = std::get<0>(outs[out_index][n]);
+              oe.second.dest = rct::pk2rct(std::get<1>(outs[out_index][n]));
+              oe.second.mask = std::get<2>(outs[out_index][n]);
+
               src.outputs.push_back(oe);
+              ++i;
           }
-          
+
+          // Paste real transaction to the random index
           auto it_to_replace = std::find_if(src.outputs.begin(), src.outputs.end(), [&](const tx_output_entry& a)
           {
               return a.first == td.m_global_output_index;
           });
           THROW_WALLET_EXCEPTION_IF(it_to_replace == src.outputs.end(), error::wallet_internal_error, "real output not found");
-          
+
           tx_output_entry real_oe;
           real_oe.first = td.m_global_output_index;
-          
-          crypto::public_key output_key = td.get_public_key();
-          
-          real_oe.second.dest = rct::pk2rct(output_key);
+          real_oe.second.dest = rct::pk2rct(td.get_public_key());
           real_oe.second.mask = rct::commit(td.amount(), td.m_mask);
           *it_to_replace = real_oe;
           src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
           src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
           src.real_output = it_to_replace - src.outputs.begin();
           src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
-          
-          // Generate key image using the now-correctly populated subaddresses map
-          cryptonote::keypair in_ephemeral;
-          if(!cryptonote::generate_key_image_helper(m_account.get_keys(), subaddresses, output_key, src.real_out_tx_key, src.real_out_additional_tx_keys, src.real_output_in_tx_index, in_ephemeral, src.key_image, hwdev))
-          {
-             THROW_WALLET_EXCEPTION_IF(true, error::wallet_internal_error, "Key image generation failed!");
-          }
-          
           detail::print_source_entry(src);
-          ++outs_idx;
+          ++out_index;
       }
   }
   LOG_PRINT_L2("outputs prepared");
