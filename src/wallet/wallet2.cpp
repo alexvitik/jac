@@ -9487,7 +9487,7 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
   //prepare inputs
   LOG_PRINT_L2("preparing outputs");
   typedef cryptonote::tx_source_entry::output_entry tx_output_entry;
-  size_t i = 0, out_index = 0;
+  size_t outs_idx = 0;
   std::vector<cryptonote::tx_source_entry> sources;
   
   // Sort transfers by type to handle genesis block separately
@@ -9528,32 +9528,30 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 
           tx_output_entry real_oe;
           real_oe.first = td.m_global_output_index;
-          // For Genesis, we use a null public key as it's not a real txout_to_key
-          real_oe.second.dest = rct::pk2rct(crypto::null_pkey); 
+          real_oe.second.dest = rct::pk2rct(crypto::null_pkey);
           real_oe.second.mask = rct::commit(td.amount(), rct::identity());
           src.outputs.push_back(real_oe);
 
           src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
           src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
-          // Directly use the key image from the transfer_details for genesis block
+          // For genesis, we use the precomputed key image
           src.key_image = td.m_key_image; 
           
           detail::print_source_entry(src);
       }
       // Original logic for regular transactions
       else {
-          THROW_WALLET_EXCEPTION_IF(out_index >= outs.size(), error::wallet_internal_error, "Failed to get real outputs for non-genesis transfers");
+          THROW_WALLET_EXCEPTION_IF(outs_idx >= outs.size(), error::wallet_internal_error, "Failed to get real outputs for non-genesis transfers");
           
           // Paste keys (fake and real)
           for (size_t n = 0; n < fake_outputs_count + 1; ++n)
           {
               tx_output_entry oe;
-              oe.first = std::get<0>(outs[out_index][n]);
-              oe.second.dest = rct::pk2rct(std::get<1>(outs[out_index][n]));
-              oe.second.mask = std::get<2>(outs[out_index][n]);
+              oe.first = std::get<0>(outs[outs_idx][n]);
+              oe.second.dest = rct::pk2rct(std::get<1>(outs[outs_idx][n]));
+              oe.second.mask = std::get<2>(outs[outs_idx][n]);
 
               src.outputs.push_back(oe);
-              ++i;
           }
 
           // Paste real transaction to the random index
@@ -9573,7 +9571,7 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
           src.real_output = it_to_replace - src.outputs.begin();
           src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
           detail::print_source_entry(src);
-          ++out_index;
+          ++outs_idx;
       }
   }
   LOG_PRINT_L2("outputs prepared");
