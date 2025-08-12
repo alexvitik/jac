@@ -9490,7 +9490,7 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
   std::vector<cryptonote::tx_source_entry> sources;
   size_t outs_idx = 0;
 
-  // Спочатку розділяємо транзакції на генезис і звичайні
+  // Спочатку створюємо списки для звичайних і генезис-транзакцій
   std::vector<size_t> non_genesis_transfers;
   std::vector<size_t> genesis_transfers;
   for(size_t idx: selected_transfers) {
@@ -9506,8 +9506,12 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
       get_outs(outs, non_genesis_transfers, fake_outputs_count, false, valid_public_keys_cache);
   }
 
-  // Обробляємо спочатку генезис-транзакції
-  for(size_t idx: genesis_transfers)
+  // Об'єднуємо обидва списки в одну послідовність для коректної обробки
+  std::vector<size_t> all_transfers = genesis_transfers;
+  all_transfers.insert(all_transfers.end(), non_genesis_transfers.begin(), non_genesis_transfers.end());
+  
+  // Тепер обробляємо всі транзакції в одному циклі
+  for(size_t idx: all_transfers)
   {
       sources.resize(sources.size()+1);
       cryptonote::tx_source_entry& src = sources.back();
@@ -9517,40 +9521,36 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
       src.rct = td.is_rct();
       src.real_output_in_tx_index = td.m_internal_output_index;
       src.mask = td.m_mask;
-      src.real_output = 0;
-      src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
 
-      tx_output_entry real_oe;
-      real_oe.first = td.m_global_output_index;
-      real_oe.second.dest = rct::pk2rct(crypto::null_pkey);
-      real_oe.second.mask = rct::commit(td.amount(), rct::identity());
-      src.outputs.push_back(real_oe);
+      // Якщо це генезис-транзакція
+      if (td.m_block_height == 0) {
+          src.real_output = 0;
+          src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
 
-      src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
-      src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
+          tx_output_entry real_oe;
+          real_oe.first = td.m_global_output_index;
+          real_oe.second.dest = rct::pk2rct(crypto::null_pkey);
+          real_oe.second.mask = rct::commit(td.amount(), rct::identity());
+          src.outputs.push_back(real_oe);
 
-      // Нові логи для перевірки даних
-      LOG_ERROR("GENESIS_TX_PREP: output key = " << src.outputs[0].second.dest);
-      LOG_ERROR("GENESIS_TX_PREP: amount = " << src.amount);
-      LOG_ERROR("GENESIS_TX_PREP: real_output = " << src.real_output);
-      LOG_ERROR("GENESIS_TX_PREP: real_out_tx_key = " << src.real_out_tx_key);
+          src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
+          src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
+
+          // Логи для перевірки даних
+          LOG_ERROR("GENESIS_TX_PREP: output key = " << src.outputs[0].second.dest);
+          LOG_ERROR("GENESIS_TX_PREP: amount = " << src.amount);
+          LOG_ERROR("GENESIS_TX_PREP: real_output = " << src.real_output);
+          LOG_ERROR("GENESIS_TX_PREP: real_out_tx_key = " << src.real_out_tx_key);
+          
+          detail::print_source_entry(src);
+          // ПРОПУСКАЄМО виклик key_image_helper і використовуємо збережений key image
+          // Це і є головне виправлення
+          src.key_image = td.m_key_image; 
+          continue; // пропускаємо решту коду, яка відноситься до звичайних транзакцій
+      }
       
-      detail::print_source_entry(src);
-  }
-
-  // Потім обробляємо звичайні транзакції
-  for(size_t idx: non_genesis_transfers)
-  {
-      sources.resize(sources.size()+1);
-      cryptonote::tx_source_entry& src = sources.back();
-      const transfer_details& td = m_transfers[idx];
-
-      src.amount = td.amount();
-      src.rct = td.is_rct();
-      src.real_output_in_tx_index = td.m_internal_output_index;
-      src.mask = td.m_mask;
-      
-      THROW_WALLET_EXCEPTION_IF(outs_idx >= outs.size(), error::wallet_internal_error, "Failed to get real outputs for non-genesis transfers");
+      // Логіка для звичайних транзакцій
+      THROW_WALLET_EXCEPTION_IF(outs.empty(), error::wallet_internal_error, "Failed to get real outputs for non-genesis transfers");
       
       for (size_t n = 0; n < fake_outputs_count + 1; ++n)
       {
