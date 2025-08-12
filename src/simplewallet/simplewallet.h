@@ -52,6 +52,9 @@
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
 #define MONERO_DEFAULT_LOG_CATEGORY "wallet.simplewallet"
+
+#define USAGE_SWEEP_GENESIS "sweep_genesis <fee> <unlock_time>"
+
 // Hardcode Monero's donation address (see #1447)
 constexpr const char MONERO_DONATION_ADDR[] = "888tNkZrPN6JsEgekjMnABU4TBzc2Dt29EPAvkRxbANsAnjyPbb3iQ1YBRk1UXcdRsiKc9dhwMVgN5S9cQUiyoogDavup3H";
 
@@ -162,6 +165,10 @@ namespace cryptonote
     bool scan_tx(const std::vector<std::string> &args);
     bool start_mining(const std::vector<std::string> &args);
     bool stop_mining(const std::vector<std::string> &args);
+    //-------------------
+    bool sweep_genesis(const std::vector<std::string>& args);
+    bool handle_sweep_genesis_command(const std::vector<std::string>& args);
+    // ----------------------
     bool set_daemon(const std::vector<std::string> &args);
     bool save_bc(const std::vector<std::string> &args);
     bool refresh(const std::vector<std::string> &args);
