@@ -9514,6 +9514,13 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
           src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
           src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
 
+          // Додані нові логи для діагностики
+          LOG_ERROR("GENESIS_TX_PREP: output key = " << src.outputs[0].second.dest);
+          LOG_ERROR("GENESIS_TX_PREP: amount = " << src.amount);
+          LOG_ERROR("GENESIS_TX_PREP: real_output = " << src.real_output);
+          LOG_ERROR("GENESIS_TX_PREP: real_out_tx_key = " << src.real_out_tx_key);
+          LOG_ERROR("GENESIS_TX_PREP: key image from DB = " << td.m_key_image);
+          
           detail::print_source_entry(src);
       } else {
           non_genesis_transfers.push_back(idx);
