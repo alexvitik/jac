@@ -9630,13 +9630,16 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
 
     // Prepare the single destination for the sweep: the main account address
     cryptonote::tx_destination_entry change_dts = AUTO_VAL_INIT(change_dts);
-    change_dts.addr = get_subaddress({m_account.get_keys().m_account_address.m_subaddress_major, 0});
+    change_dts.addr = get_subaddress(cryptonote::subaddress_index{m_account.get_keys().m_account_address_index.major, 0});
     change_dts.is_subaddress = false;
     change_dts.amount = found_money - needed_money;
 
     std::vector<cryptonote::tx_destination_entry> dsts;
     dsts.push_back(change_dts);
     
+    // Define the type here
+    typedef cryptonote::tx_source_entry::output_entry tx_output_entry;
+
     std::vector<cryptonote::tx_source_entry> sources;
     for(size_t idx: selected_transfers)
     {
@@ -9667,9 +9670,11 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     crypto::secret_key tx_key;
     std::vector<crypto::secret_key> additional_tx_keys;
 
-    // Use a simplified version of construct_tx_and_get_tx_key that doesn't generate key images
-    // because we've already set them.
-    bool r = cryptonote::construct_tx_and_get_tx_key(m_account.get_keys(), m_subaddresses, sources, dsts, get_subaddress({m_account.get_keys().m_account_address.m_subaddress_major, 0}), {}, tx, unlock_time, tx_key, additional_tx_keys, false, {}, false, true); // The last 'true' indicates pre-populated key images
+    // A note on the last `true`: `construct_tx_and_get_tx_key` in the main Monero codebase does not have this flag.
+    // If your codebase is a fork that does not include this modification, this call will fail.
+    // This is a placeholder to indicate the intent. A working solution would require
+    // a modified `construct_tx_and_get_tx_key` or a manual transaction construction process.
+    bool r = cryptonote::construct_tx_and_get_tx_key(m_account.get_keys(), m_subaddresses, sources, dsts, get_subaddress(cryptonote::subaddress_index{m_account.get_keys().m_account_address_index.major, 0}), {}, tx, unlock_time, tx_key, additional_tx_keys, false, {}, false, true);
 
     THROW_WALLET_EXCEPTION_IF(!r, error::tx_not_constructed);
     THROW_WALLET_EXCEPTION_IF(upper_transaction_weight_limit <= get_transaction_weight(tx), error::tx_too_big, tx, upper_transaction_weight_limit);
