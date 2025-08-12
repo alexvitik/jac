@@ -9489,7 +9489,17 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
   typedef cryptonote::tx_source_entry::output_entry tx_output_entry;
   std::vector<cryptonote::tx_source_entry> sources;
   size_t outs_idx = 0;
+  
+  hw::device& hwdev = m_account.get_device();
 
+  // Отримуємо повний список субадресів гаманця
+  std::vector<cryptonote::subaddress_information> subaddresses_list;
+  m_account.get_subaddresses(0, subaddresses_list); // припускаємо, що get_subaddresses існує
+  std::unordered_map<crypto::public_key, cryptonote::subaddress_index> subaddresses;
+  for (const auto& subaddr_info : subaddresses_list) {
+      subaddresses[subaddr_info.m_address.m_spend_public_key] = subaddr_info.m_index;
+  }
+  
   // Спочатку створюємо списки для звичайних і генезис-транзакцій
   std::vector<size_t> non_genesis_transfers;
   std::vector<size_t> genesis_transfers;
@@ -9580,10 +9590,9 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
           src.real_output = it_to_replace - src.outputs.begin();
           src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
           
-          // Викликаємо generate_key_image_helper для звичайних виходів
-          // з правильними параметрами, які вже доступні
-          if(!cryptonote::generate_key_image_helper(m_account.get_keys(), m_account.get_subaddress_view_key(td.m_subaddr_account, td.m_subaddr_index), 
-              output_key, src.real_out_tx_key, src.real_out_additional_tx_keys, src.real_output_in_tx_index, src.key_image, hwdev))
+          // Генеруємо key image за допомогою коректних параметрів
+          cryptonote::keypair in_ephemeral;
+          if(!cryptonote::generate_key_image_helper(m_account.get_keys(), subaddresses, output_key, src.real_out_tx_key, src.real_out_additional_tx_keys, src.real_output_in_tx_index, in_ephemeral, src.key_image, hwdev))
           {
              THROW_WALLET_EXCEPTION_IF(true, error::wallet_internal_error, "Key image generation failed!");
           }
