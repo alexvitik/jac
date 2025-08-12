@@ -9490,28 +9490,14 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
   std::vector<cryptonote::tx_source_entry> sources;
   size_t outs_idx = 0;
 
-  // Спочатку створюємо списки для звичайних і генезис-транзакцій
-  std::vector<size_t> non_genesis_transfers;
-  std::vector<size_t> genesis_transfers;
-  for(size_t idx: selected_transfers) {
-      if (m_transfers[idx].m_block_height == 0) {
-          genesis_transfers.push_back(idx);
-      } else {
-          non_genesis_transfers.push_back(idx);
-      }
+  // Викликаємо get_outs тільки якщо є звичайні (не-генезис) виходи
+  if (std::any_of(selected_transfers.begin(), selected_transfers.end(), 
+      [&](size_t idx){ return m_transfers[idx].m_block_height != 0; }))
+  {
+      get_outs(outs, selected_transfers, fake_outputs_count, false, valid_public_keys_cache);
   }
 
-  // Отримуємо "фальшиві" виходи тільки для звичайних транзакцій
-  if (!non_genesis_transfers.empty()) {
-      get_outs(outs, non_genesis_transfers, fake_outputs_count, false, valid_public_keys_cache);
-  }
-
-  // Об'єднуємо обидва списки в одну послідовність для коректної обробки
-  std::vector<size_t> all_transfers = genesis_transfers;
-  all_transfers.insert(all_transfers.end(), non_genesis_transfers.begin(), non_genesis_transfers.end());
-
-  // Тепер обробляємо всі транзакції в одному циклі
-  for(size_t idx: all_transfers)
+  for(size_t idx: selected_transfers)
   {
       sources.resize(sources.size()+1);
       cryptonote::tx_source_entry& src = sources.back();
@@ -9521,6 +9507,8 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
       src.rct = td.is_rct();
       src.real_output_in_tx_index = td.m_internal_output_index;
       src.mask = td.m_mask;
+      
+      LOG_ERROR("DEBUG: Processing output with global index " << td.m_global_output_index << " and block height " << td.m_block_height);
 
       // Якщо це генезис-транзакція
       if (td.m_block_height == 0) {
@@ -9535,52 +9523,58 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 
           src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
           src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
-
           src.key_image = td.m_key_image; 
-
-          // Логи для перевірки даних
+          
           LOG_ERROR("GENESIS_TX_PREP: output key = " << src.outputs[0].second.dest);
           LOG_ERROR("GENESIS_TX_PREP: amount = " << src.amount);
           LOG_ERROR("GENESIS_TX_PREP: real_output = " << src.real_output);
           LOG_ERROR("GENESIS_TX_PREP: real_out_tx_key = " << src.real_out_tx_key);
           LOG_ERROR("GENESIS_TX_PREP: key_image = " << src.key_image);
-
+          
           detail::print_source_entry(src);
-          continue;
       }
-
-      // Логіка для звичайних транзакцій
-      THROW_WALLET_EXCEPTION_IF(outs.empty(), error::wallet_internal_error, "Failed to get real outputs for non-genesis transfers");
-
-      for (size_t n = 0; n < fake_outputs_count + 1; ++n)
+      // Якщо це звичайна транзакція
+      else 
       {
-          tx_output_entry oe;
-          oe.first = std::get<0>(outs[outs_idx][n]);
-          oe.second.dest = rct::pk2rct(std::get<1>(outs[outs_idx][n]));
-          oe.second.mask = std::get<2>(outs[outs_idx][n]);
-          src.outputs.push_back(oe);
+          THROW_WALLET_EXCEPTION_IF(outs_idx >= outs.size(), error::wallet_internal_error, "Failed to get real outputs for non-genesis transfers");
+          
+          for (size_t n = 0; n < fake_outputs_count + 1; ++n)
+          {
+              tx_output_entry oe;
+              oe.first = std::get<0>(outs[outs_idx][n]);
+              oe.second.dest = rct::pk2rct(std::get<1>(outs[outs_idx][n]));
+              oe.second.mask = std::get<2>(outs[outs_idx][n]);
+              src.outputs.push_back(oe);
+          }
+          
+          auto it_to_replace = std::find_if(src.outputs.begin(), src.outputs.end(), [&](const tx_output_entry& a)
+          {
+              return a.first == td.m_global_output_index;
+          });
+          THROW_WALLET_EXCEPTION_IF(it_to_replace == src.outputs.end(), error::wallet_internal_error, "real output not found");
+          
+          tx_output_entry real_oe;
+          real_oe.first = td.m_global_output_index;
+          
+          crypto::public_key output_key = td.get_public_key();
+          
+          real_oe.second.dest = rct::pk2rct(output_key);
+          real_oe.second.mask = rct::commit(td.amount(), td.m_mask);
+          *it_to_replace = real_oe;
+          src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
+          src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
+          src.real_output = it_to_replace - src.outputs.begin();
+          src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
+          
+          // Викликаємо key_image_helper тільки для звичайних транзакцій
+          if(!cryptonote::generate_key_image_helper(m_account.get_keys(), m_account.get_subaddress_view_key(td.m_subaddr_account, td.m_subaddr_index), 
+              output_key, src.real_out_tx_key, src.real_out_additional_tx_keys, src.real_output_in_tx_index, src.key_image, hwdev))
+          {
+             THROW_WALLET_EXCEPTION_IF(true, error::wallet_internal_error, "Key image generation failed!");
+          }
+          detail::print_source_entry(src);
+          ++outs_idx;
       }
-
-      auto it_to_replace = std::find_if(src.outputs.begin(), src.outputs.end(), [&](const tx_output_entry& a)
-      {
-          return a.first == td.m_global_output_index;
-      });
-      THROW_WALLET_EXCEPTION_IF(it_to_replace == src.outputs.end(), error::wallet_internal_error, "real output not found");
-
-      tx_output_entry real_oe;
-      real_oe.first = td.m_global_output_index;
-
-      crypto::public_key output_key = td.get_public_key();
-
-      real_oe.second.dest = rct::pk2rct(output_key);
-      real_oe.second.mask = rct::commit(td.amount(), td.m_mask);
-      *it_to_replace = real_oe;
-      src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
-      src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
-      src.real_output = it_to_replace - src.outputs.begin();
-      src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
-      detail::print_source_entry(src);
-      ++outs_idx;
   }
   LOG_PRINT_L2("outputs prepared");
 
