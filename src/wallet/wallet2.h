@@ -73,6 +73,10 @@
 #include "wallet_light_rpc.h"
 #include "wallet_rpc_helpers.h"
 
+//----------------
+#include "wallet/api/pending_transaction.h"
+//------------------
+
 #undef MONERO_DEFAULT_LOG_CATEGORY
 #define MONERO_DEFAULT_LOG_CATEGORY "wallet.wallet2"
 
