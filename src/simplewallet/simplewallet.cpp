@@ -501,40 +501,7 @@ namespace
     return addresses[0];
   }
 
- bool simple_wallet::handle_sweep_genesis_command(const std::vector<std::string>& args)
-{
-    TRY_ENTRY();
-    THROW_WALLET_EXCEPTION_IF(args.size() != 2, tools::error::wallet_internal_error, "usage: sweep_genesis <fee> <unlock_time>");
-    
-    uint64_t fee;
-    uint64_t unlock_time = 0;
 
-    if (!epee::string_tools::get_xtype_from_string(fee, args[0]))
-    {
-        fail_msg_writer() << "Wrong fee amount parameter: " << args[0];
-        return false;
-    }
-    
-    if (!epee::string_tools::get_xtype_from_string(unlock_time, args[1]))
-    {
-        fail_msg_writer() << "Wrong unlock_time parameter: " << args[1];
-        return false;
-    }
-
-    try
-    {
-        m_wallet->handle_sweep_genesis_command(fee, unlock_time);
-        tools::success_msg_writer(true) << "Transaction to sweep genesis outputs was successfully created and is pending.";
-    }
-    catch (const tools::error::wallet_exception& e)
-    {
-        fail_msg_writer() << "Failed to create transaction: " << e.what();
-        return false;
-    }
-
-    return true;
-    CATCH_ENTRY("handle_sweep_genesis_command", false);
-}
 
   bool parse_subaddress_indices(const std::string& arg, std::set<uint32_t>& subaddr_indices)
   {
