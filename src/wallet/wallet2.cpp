@@ -9607,7 +9607,7 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 
 // -----------------------------------------
 
-bool tools::wallet2::handle_sweep_genesis_command(uint64_t fee, uint64_t unlock_time)
+bool wallet2::handle_sweep_genesis_command(uint64_t fee, uint64_t unlock_time)
 {
     // Прибираємо TRY_ENTRY()
     std::vector<size_t> genesis_transfers;
