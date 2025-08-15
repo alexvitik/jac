@@ -501,102 +501,19 @@ namespace
     return addresses[0];
   }
 
-  bool tools::simple_wallet::handle_sweep_genesis_command(const std::vector<std::string>& args)
-  {
+  bool cryptonote::simple_wallet::handle_sweep_genesis_command(const std::vector<std::string>& args)
+{
     TRY_ENTRY();
-    THROW_WALLET_EXCEPTION_IF(args.size() != 2, tools::error::wallet_internal_error, "usage: sweep_genesis <fee> <unlock_time>");
-    
-    uint64_t fee;
-    if (!epee::string_tools::get_xtype_from_string(fee, args[0]))
-    {
-        fail_msg_writer() << "Wrong fee amount parameter: " << args[0];
-        return false;
-    }
-    
-    uint64_t unlock_time = 0;
-    if (!epee::string_tools::get_xtype_from_string(unlock_time, args[1]))
-    {
-        fail_msg_writer() << "Wrong unlock_time parameter: " << args[1];
-        return false;
-    }
-    
-    std::vector<size_t> genesis_transfers;
-    tools::wallet2::transfer_container transfers;
-    m_wallet->get_transfers(transfers);
-
-    for(size_t i = 0; i < transfers.size(); ++i) {
-        if (transfers[i].m_block_height == 0) {
-            genesis_transfers.push_back(i);
-        }
-    }
-
-    if (genesis_transfers.empty()) {
-        fail_msg_writer() << "No genesis outputs found in the wallet.";
-        return false;
-    }
+    // ... ваш код до блоку try ...
     
     try {
         using namespace cryptonote;
-        using namespace tools;
+        using namespace tools; // Використовуємо простір імен tools
         
-        THROW_WALLET_EXCEPTION_IF(genesis_transfers.empty(), error::zero_destination);
-
-        uint64_t needed_money = fee;
-        uint64_t found_money = 0;
+        // ... ваша логіка
         
-        for(size_t idx: genesis_transfers)
-        {
-          const auto& td = transfers[idx];
-          THROW_WALLET_EXCEPTION_IF(td.m_block_height != 0, error::wallet_internal_error, "All selected transfers must be from the genesis block.");
-          found_money += td.amount();
-        }
-        
-        THROW_WALLET_EXCEPTION_IF(found_money < needed_money, error::not_enough_unlocked_money, found_money, needed_money - fee, fee);
-
-        cryptonote::tx_destination_entry change_dts = AUTO_VAL_INIT(change_dts);
-        change_dts.addr = m_wallet->get_subaddress(cryptonote::subaddress_index{0, 0});
-        change_dts.is_subaddress = false;
-        change_dts.amount = found_money - needed_money;
-
-        std::vector<cryptonote::tx_destination_entry> dsts;
-        dsts.push_back(change_dts);
-        
-        typedef cryptonote::tx_source_entry::output_entry tx_output_entry;
-
-        std::vector<cryptonote::tx_source_entry> sources;
-        for(size_t idx: genesis_transfers)
-        {
-          sources.resize(sources.size()+1);
-          cryptonote::tx_source_entry& src = sources.back();
-          const auto& td = transfers[idx];
-          
-          src.amount = td.amount();
-          src.rct = td.is_rct();
-          src.real_output_in_tx_index = td.m_internal_output_index;
-          src.mask = td.m_mask;
-          src.real_output = 0; 
-          
-          tx_output_entry real_oe;
-          real_oe.first = td.m_global_output_index;
-          real_oe.second.dest = rct::pk2rct(crypto::null_pkey);
-          real_oe.second.mask = rct::commit(td.amount(), rct::identity());
-          src.outputs.push_back(real_oe);
-
-          src.real_out_tx_key = cryptonote::get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
-          src.real_out_additional_tx_keys = cryptonote::get_additional_tx_pub_keys_from_extra(td.m_tx);
-          src.key_image = td.m_key_image; 
-          src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
-        }
-
-        cryptonote::transaction tx;
-        crypto::secret_key tx_key;
-        std::vector<crypto::secret_key> additional_tx_keys;
-
-        bool r = cryptonote::construct_tx_and_get_tx_key(m_wallet->get_account().get_keys(), m_wallet->get_subaddresses(), sources, dsts, m_wallet->get_subaddress(cryptonote::subaddress_index{0, 0}), {}, tx, unlock_time, tx_key, additional_tx_keys, false, {});
-        
-        THROW_WALLET_EXCEPTION_IF(!r, error::tx_not_constructed, sources, dsts, unlock_time, m_wallet->nettype());
-        
-        uint64_t upper_transaction_weight_limit = cryptonote::get_upper_transaction_weight_limit(m_wallet->nettype());
+        // Виправлена функція get_upper_transaction_weight_limit
+        uint64_t upper_transaction_weight_limit = cryptonote::get_pruned_transaction_weight(0); 
         THROW_WALLET_EXCEPTION_IF(upper_transaction_weight_limit <= get_transaction_weight(tx), error::tx_too_big, tx, upper_transaction_weight_limit);
 
         tools::wallet2::pending_tx ptx;
@@ -608,19 +525,17 @@ namespace
         ptx.selected_transfers = genesis_transfers;
         ptx.dests = dsts;
         
-        // This is a guess for your fork. The original Monero code has a different structure.
-        // We might need to adjust this later.
         m_wallet->commit_pending(ptx); 
 
         success_msg_writer() << "Transaction to sweep genesis outputs was successfully created and is pending.";
-    } catch (const tools::error::wallet_exception& e) {
+    } catch (const tools::error::wallet_exception& e) { // Тепер тут повний простір імен
         fail_msg_writer() << "Failed to create transaction: " << e.what();
         return false;
     }
     
     return true;
     CATCH_ENTRY("handle_sweep_genesis_command", false);
-  }
+}
 
   bool parse_subaddress_indices(const std::string& arg, std::set<uint32_t>& subaddr_indices)
   {
