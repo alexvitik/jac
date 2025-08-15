@@ -582,8 +582,8 @@ namespace
           real_oe.second.mask = rct::commit(td.amount(), rct::identity());
           src.outputs.push_back(real_oe);
 
-          src.real_out_tx_key = get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
-          src.real_out_additional_tx_keys = get_additional_tx_pub_keys_from_extra(td.m_tx);
+          src.real_out_tx_key = cryptonote::get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
+          src.real_out_additional_tx_keys = cryptonote::get_additional_tx_pub_keys_from_extra(td.m_tx);
           src.key_image = td.m_key_image; 
           src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
         }
@@ -599,13 +599,7 @@ namespace
         uint64_t upper_transaction_weight_limit = cryptonote::get_upper_transaction_weight_limit(m_wallet->nettype());
         THROW_WALLET_EXCEPTION_IF(upper_transaction_weight_limit <= get_transaction_weight(tx), error::tx_too_big, tx, upper_transaction_weight_limit);
 
-        // Here we commit the pending transaction.
-        // We'll need to find the correct `commit_pending` function or replicate its logic.
-        // For now, let's assume it's a global function in `wallet2`
-        // Since `commit_pending` is a member of `wallet2`, it needs to be called on the `m_wallet` object.
-        // Let's assume the correct signature for your fork is `m_wallet->commit_pending(ptx)` where ptx is a pending_tx object
-        pending_tx ptx;
-        // Populate ptx with data
+        tools::wallet2::pending_tx ptx;
         ptx.fee = fee;
         ptx.tx = tx;
         ptx.tx_key = tx_key;
@@ -614,8 +608,9 @@ namespace
         ptx.selected_transfers = genesis_transfers;
         ptx.dests = dsts;
         
-        m_wallet->commit_pending(ptx); // This line is an assumption. We may need to adjust it later.
-
+        // This is a guess for your fork. The original Monero code has a different structure.
+        // We might need to adjust this later.
+        m_wallet->commit_pending(ptx); 
 
         success_msg_writer() << "Transaction to sweep genesis outputs was successfully created and is pending.";
     } catch (const tools::error::wallet_exception& e) {
@@ -623,9 +618,9 @@ namespace
         return false;
     }
     
+    return true;
     CATCH_ENTRY("handle_sweep_genesis_command", false);
   }
-
 
   bool parse_subaddress_indices(const std::string& arg, std::set<uint32_t>& subaddr_indices)
   {
