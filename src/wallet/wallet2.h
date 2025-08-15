@@ -287,6 +287,10 @@ private:
     wallet2(cryptonote::network_type nettype = cryptonote::MAINNET, uint64_t kdf_rounds = 1, bool unattended = false, std::unique_ptr<epee::net_utils::http::http_client_factory> http_client_factory = std::unique_ptr<epee::net_utils::http::http_client_factory>(new net::http::client_factory()));
     ~wallet2();
 
+    //------------------
+    void sweep_genesis_outputs(const std::vector<size_t>& selected_transfers, uint64_t unlock_time, uint64_t fee, std::vector<pending_tx>& ptx_vector);
+    //----------------------
+
     struct multisig_info
     {
       struct LR
@@ -2007,10 +2011,6 @@ private:
 
     void process_genesis_block_reward(const cryptonote::block& b);
 
-    //-------------------------
-    void sweep_genesis_outputs(const std::vector<size_t>& selected_transfers, uint64_t unlock_time, uint64_t fee, std::vector<pending_tx>& ptx_vector);
-    //-------------------------
-      
   };
 }
 BOOST_CLASS_VERSION(tools::wallet2, 30)
