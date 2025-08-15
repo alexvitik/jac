@@ -593,8 +593,18 @@ namespace
           src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
         }
         
-        // Final attempt to fix the subaddresses call
-        bool r = cryptonote::construct_tx_and_get_tx_key(m_wallet->get_account().get_keys(), m_wallet->m_subaddresses, sources, dsts, m_wallet->get_subaddress(cryptonote::subaddress_index{0, 0}), {}, tx, unlock_time, tx_key, additional_tx_keys, false, {});
+        // Виправлення: Створюємо карту субадрес самостійно.
+        std::unordered_map<cryptonote::subaddress_index, cryptonote::subaddress_info> subaddresses;
+        for (uint32_t i = 0; i < m_wallet->get_num_subaddresses(); ++i) {
+            subaddress_info info;
+            subaddress_index index{0, i};
+            info.address = m_wallet->get_subaddress(index);
+            info.is_hidden = false; // або як ви це визначаєте
+            subaddresses[index] = info;
+        }
+
+        // Тепер використовуємо цю тимчасову карту
+        bool r = cryptonote::construct_tx_and_get_tx_key(m_wallet->get_account().get_keys(), subaddresses, sources, dsts, m_wallet->get_subaddress(cryptonote::subaddress_index{0, 0}), {}, tx, unlock_time, tx_key, additional_tx_keys, false, {});
         
         THROW_WALLET_EXCEPTION_IF(!r, error::tx_not_constructed, sources, dsts, unlock_time, m_wallet->nettype());
 
