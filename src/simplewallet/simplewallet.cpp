@@ -5471,7 +5471,14 @@ bool simple_wallet::handle_sweep_genesis_command(const std::vector<std::string>&
     
     // Find all genesis transfers
     std::vector<size_t> genesis_transfers;
-    for (size_t i = 0; i < m_wallet->get_transfers().size(); ++i) {
+    // Оголошуємо контейнер
+    tools::wallet2::transfer_container incoming_transfers;
+
+    // Викликаємо функцію, передаючи контейнер за посиланням
+    m_wallet->get_transfers(incoming_transfers);
+
+    // Тепер можна отримати розмір
+    for (size_t i = 0; i < incoming_transfers.size(); ++i) {
         if (m_wallet->get_transfer_details(i).m_block_height == 0) {
             genesis_transfers.push_back(i);
         }
