@@ -5471,7 +5471,7 @@ bool simple_wallet::handle_sweep_genesis_command(const std::vector<std::string>&
     
     // Find all genesis transfers
     std::vector<size_t> genesis_transfers;
-    for (size_t i = 0; i < m_wallet->get_transfers_count(); ++i) {
+    for (size_t i = 0; i < m_wallet->get_transfers().size(); ++i) {
         if (m_wallet->get_transfer_details(i).m_block_height == 0) {
             genesis_transfers.push_back(i);
         }
@@ -5488,7 +5488,7 @@ bool simple_wallet::handle_sweep_genesis_command(const std::vector<std::string>&
     // Notify the user about the created transaction
     success_msg_writer() << "Transaction to sweep genesis outputs was successfully created and is pending.";
     return true;
-    CATCH_ENTRY(false);
+    CATCH_ENTRY("handle_sweep_genesis_command", false);
 }
 
 
