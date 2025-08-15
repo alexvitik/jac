@@ -9609,6 +9609,7 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 
 bool tools::wallet2::handle_sweep_genesis_command(uint64_t fee, uint64_t unlock_time)
 {
+    // Прибираємо TRY_ENTRY()
     std::vector<size_t> genesis_transfers;
     cryptonote::transaction tx;
     crypto::secret_key tx_key;
@@ -9707,9 +9708,10 @@ bool tools::wallet2::handle_sweep_genesis_command(uint64_t fee, uint64_t unlock_
         commit_tx(ptx);
         return true;
     } catch (const tools::error::wallet_exception& e) {
+        // Логуємо помилку вручну
         MLOG_ERROR("Failed to sweep genesis: " << e.what());
+        return false;
     }
-    return false;
 }
 
 void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry> dsts, const std::vector<size_t>& selected_transfers, size_t fake_outputs_count,
