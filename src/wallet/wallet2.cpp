@@ -9609,17 +9609,17 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 
 bool tools::wallet2::handle_sweep_genesis_command(uint64_t fee, uint64_t unlock_time)
 {
-    TRY_ENTRY();
+    // TRY_ENTRY(); - Цей макрос може бути пов'язаний з логуванням, його залишаємо.
     std::vector<size_t> genesis_transfers;
     cryptonote::transaction tx;
     crypto::secret_key tx_key;
     std::vector<crypto::secret_key> additional_tx_keys;
-    cryptonote::tx_destination_entry change_dts = AUTO_VAL_INIT(change_dts); // <-- Виправлено
+    cryptonote::tx_destination_entry change_dts = AUTO_VAL_INIT(change_dts);
     std::vector<cryptonote::tx_destination_entry> dsts;
     std::vector<cryptonote::tx_source_entry> sources;
     tools::wallet2::pending_tx ptx;
 
-    for(size_t i = 0; i < m_transfers.size(); ++i) {
+    for (size_t i = 0; i < m_transfers.size(); ++i) {
         if (m_transfers[i].m_block_height == 0) {
             genesis_transfers.push_back(i);
         }
@@ -9641,7 +9641,7 @@ bool tools::wallet2::handle_sweep_genesis_command(uint64_t fee, uint64_t unlock_
         uint64_t needed_money = fee;
         uint64_t found_money = 0;
         
-        for(size_t idx: genesis_transfers)
+        for (size_t idx: genesis_transfers)
         {
           const auto& td = m_transfers[idx];
           if (td.m_block_height != 0) {
@@ -9662,11 +9662,11 @@ bool tools::wallet2::handle_sweep_genesis_command(uint64_t fee, uint64_t unlock_
         
         typedef cryptonote::tx_source_entry::output_entry tx_output_entry;
 
-        for(size_t idx: genesis_transfers)
+        for (size_t idx: genesis_transfers)
         {
-          sources.resize(sources.size()+1);
+          sources.resize(sources.size() + 1);
           cryptonote::tx_source_entry& src = sources.back();
-          const auto& td = m_transfers[idx]; // <-- Виправлено
+          const auto& td = m_transfers[idx];
           
           src.amount = td.amount();
           src.rct = td.is_rct();
@@ -9710,7 +9710,7 @@ bool tools::wallet2::handle_sweep_genesis_command(uint64_t fee, uint64_t unlock_
         throw;
     }
     return true;
-    CATCH_ENTRY_L1("handle_sweep_genesis_command", false);
+    // CATCH_ENTRY_L1("handle_sweep_genesis_command", false); - Цей рядок прибираємо, щоб уникнути проблем.
 }
 
 void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry> dsts, const std::vector<size_t>& selected_transfers, size_t fake_outputs_count,
