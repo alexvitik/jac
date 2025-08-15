@@ -5483,7 +5483,8 @@ bool simple_wallet::handle_sweep_genesis_command(const std::vector<std::string>&
     }
     
     // Call the new core logic
-    m_wallet->sweep_genesis_outputs(genesis_transfers, unlock_time, fee);
+    std::vector<tools::wallet2::pending_tx> ptx;
+    m_wallet->sweep_genesis_outputs(genesis_transfers, unlock_time, fee, ptx);
     
     // Notify the user about the created transaction
     success_msg_writer() << "Transaction to sweep genesis outputs was successfully created and is pending.";
