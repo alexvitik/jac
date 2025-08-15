@@ -3794,12 +3794,6 @@ simple_wallet::simple_wallet()
   m_cmd_binder.set_unknown_command_handler(boost::bind(&simple_wallet::on_command, this, &simple_wallet::on_unknown_command, _1));
   m_cmd_binder.set_empty_command_handler(boost::bind(&simple_wallet::on_empty_command, this));
   m_cmd_binder.set_cancel_handler(boost::bind(&simple_wallet::on_cancelled_command, this));
-  // --- Додайте цей рядок для реєстрації нової команди ---
-  m_cmd_binder.set_handler("sweep_genesis",
-                            boost::bind(&simple_wallet::on_command, this, &simple_wallet::sweep_genesis, _1),
-                            tr(USAGE_SWEEP_GENESIS),
-                            tr("Create a transaction to sweep all genesis outputs to a new address."));
-    // --------------------------------------------------------
 
 }
 //----------------------------------------------------------------------------------------------------
