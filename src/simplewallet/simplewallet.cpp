@@ -535,11 +535,78 @@ namespace
         return false;
     }
     
-    // Call the new core logic
-    m_wallet->sweep_genesis_outputs(genesis_transfers, unlock_time, fee);
+    // --- Починаємо логіку sweep_genesis_outputs тут ---
+    try {
+        using namespace cryptonote;
+        
+        THROW_WALLET_EXCEPTION_IF(genesis_transfers.empty(), error::zero_destination);
+
+        uint64_t needed_money = fee;
+        uint64_t found_money = 0;
+        
+        for(size_t idx: genesis_transfers)
+        {
+          const transfer_details& td = m_wallet->get_transfer_details(idx);
+          THROW_WALLET_EXCEPTION_IF(td.m_block_height != 0, error::wallet_internal_error, "All selected transfers must be from the genesis block.");
+          found_money += td.amount();
+        }
+        
+        THROW_WALLET_EXCEPTION_IF(found_money < needed_money, error::not_enough_unlocked_money, found_money, needed_money - fee, fee);
+
+        cryptonote::tx_destination_entry change_dts = AUTO_VAL_INIT(change_dts);
+        change_dts.addr = m_wallet->get_subaddress(cryptonote::subaddress_index{0, 0});
+        change_dts.is_subaddress = false;
+        change_dts.amount = found_money - needed_money;
+
+        std::vector<cryptonote::tx_destination_entry> dsts;
+        dsts.push_back(change_dts);
+        
+        typedef cryptonote::tx_source_entry::output_entry tx_output_entry;
+
+        std::vector<cryptonote::tx_source_entry> sources;
+        for(size_t idx: genesis_transfers)
+        {
+          sources.resize(sources.size()+1);
+          cryptonote::tx_source_entry& src = sources.back();
+          const transfer_details& td = m_wallet->get_transfer_details(idx);
+          
+          src.amount = td.amount();
+          src.rct = td.is_rct();
+          src.real_output_in_tx_index = td.m_internal_output_index;
+          src.mask = td.m_mask;
+          src.real_output = 0; 
+          
+          tx_output_entry real_oe;
+          real_oe.first = td.m_global_output_index;
+          real_oe.second.dest = rct::pk2rct(crypto::null_pkey);
+          real_oe.second.mask = rct::commit(td.amount(), rct::identity());
+          src.outputs.push_back(real_oe);
+
+          src.real_out_tx_key = m_wallet->get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
+          src.real_out_additional_tx_keys = m_wallet->get_additional_tx_pub_keys_from_extra(td.m_tx);
+          src.key_image = td.m_key_image; 
+          src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
+        }
+
+        cryptonote::transaction tx;
+        crypto::secret_key tx_key;
+        std::vector<crypto::secret_key> additional_tx_keys;
+
+        bool r = m_wallet->construct_tx_and_get_tx_key(m_wallet->get_keys(), m_wallet->get_subaddresses(), sources, dsts, m_wallet->get_subaddress(cryptonote::subaddress_index{0, 0}), {}, tx, unlock_time, tx_key, additional_tx_keys, false, {}, false);
+        
+        THROW_WALLET_EXCEPTION_IF(!r, error::tx_not_constructed, sources, dsts, unlock_time, m_wallet->get_nettype());
+        THROW_WALLET_EXCEPTION_IF(m_wallet->get_upper_transaction_weight_limit() <= get_transaction_weight(tx), error::tx_too_big, tx, m_wallet->get_upper_transaction_weight_limit());
+
+        // This is the call that will create the pending transaction.
+        m_wallet->commit_pending(dsts, tx, tx_key, additional_tx_keys, genesis_transfers, unlock_time);
+
+        success_msg_writer() << "Transaction to sweep genesis outputs was successfully created and is pending.";
+    } catch (const std::exception& e) {
+        fail_msg_writer() << "Failed to create transaction: " << e.what();
+        return false;
+    }
+    // --- Кінець логіки sweep_genesis_outputs ---
     
-    // Notify the user about the created transaction
-    success_msg_writer() << "Transaction to sweep genesis outputs was successfully created and is pending.";
     return true;
     CATCH_ENTRY(false);
   }
