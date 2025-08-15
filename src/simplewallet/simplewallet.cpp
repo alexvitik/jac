@@ -501,7 +501,7 @@ namespace
     return addresses[0];
   }
 
-  bool simple_wallet::handle_sweep_genesis_command(const std::vector<std::string>& args)
+  bool cryptonote::simple_wallet::handle_sweep_genesis_command(const std::vector<std::string>& args)
   {
     TRY_ENTRY();
     THROW_WALLET_EXCEPTION_IF(args.size() != 2, tools::error::wallet_internal_error, "usage: sweep_genesis <fee> <unlock_time>");
@@ -524,7 +524,7 @@ namespace
     
     // Find all genesis transfers
     std::vector<size_t> genesis_transfers;
-    for (size_t i = 0; i < m_wallet->get_transfers_count(); ++i) {
+    for (size_t i = 0; i < m_wallet->get_transfers().size(); ++i) {
         if (m_wallet->get_transfer_details(i).m_block_height == 0) {
             genesis_transfers.push_back(i);
         }
@@ -538,6 +538,7 @@ namespace
     // --- Починаємо логіку sweep_genesis_outputs тут ---
     try {
         using namespace cryptonote;
+        using namespace tools;
         
         THROW_WALLET_EXCEPTION_IF(genesis_transfers.empty(), error::zero_destination);
 
@@ -597,18 +598,17 @@ namespace
         THROW_WALLET_EXCEPTION_IF(!r, error::tx_not_constructed, sources, dsts, unlock_time, m_wallet->get_nettype());
         THROW_WALLET_EXCEPTION_IF(m_wallet->get_upper_transaction_weight_limit() <= get_transaction_weight(tx), error::tx_too_big, tx, m_wallet->get_upper_transaction_weight_limit());
 
-        // This is the call that will create the pending transaction.
         m_wallet->commit_pending(dsts, tx, tx_key, additional_tx_keys, genesis_transfers, unlock_time);
 
         success_msg_writer() << "Transaction to sweep genesis outputs was successfully created and is pending.";
-    } catch (const std::exception& e) {
+    } catch (const tools::error::wallet_exception& e) {
         fail_msg_writer() << "Failed to create transaction: " << e.what();
         return false;
     }
     // --- Кінець логіки sweep_genesis_outputs ---
     
     return true;
-    CATCH_ENTRY(false);
+    CATCH_ENTRY("handle_sweep_genesis_command", false);
   }
 
 
