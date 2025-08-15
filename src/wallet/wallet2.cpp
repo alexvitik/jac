@@ -9604,7 +9604,7 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
   LOG_PRINT_L2("transfer_selected done");
 }
 //-----------------------------------------------
-void tools::wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfers, uint64_t unlock_time, uint64_t fee)
+void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfers, uint64_t unlock_time, uint64_t fee, std::vector<pending_tx>& ptx_vector)
 {
     using namespace cryptonote;
     
@@ -9714,7 +9714,7 @@ void tools::wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_t
     ptx.construction_data.subaddr_account = 0;
     ptx.construction_data.subaddr_indices.insert(0);
 
-    m_pending_tx.push_back(ptx);
+    ptx_vector.push_back(ptx);
     LOG_PRINT_L2("sweep_genesis_outputs done");
 }
 
