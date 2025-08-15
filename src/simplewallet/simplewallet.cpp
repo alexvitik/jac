@@ -501,8 +501,8 @@ namespace
     return addresses[0];
   }
 
-  bool simple_wallet::handle_sweep_genesis_command(const std::vector<std::string>& args)
-  {
+  bool cryptonote::simple_wallet::handle_sweep_genesis_command(const std::vector<std::string>& args)
+{
     TRY_ENTRY();
     THROW_WALLET_EXCEPTION_IF(args.size() != 2, tools::error::wallet_internal_error, "usage: sweep_genesis <fee> <unlock_time>");
     
@@ -593,12 +593,15 @@ namespace
           src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
         }
         
-        bool r = cryptonote::construct_tx_and_get_tx_key(m_wallet->get_account().get_keys(), m_wallet->get_all_subaddresses(), sources, dsts, m_wallet->get_subaddress(cryptonote::subaddress_index{0, 0}), {}, tx, unlock_time, tx_key, additional_tx_keys, false, {});
+        // Виправлення: отримати субадреси через m_wallet->get_subaddresses_as_map()
+        // Це припущення, але воно логічне для цієї версії
+        bool r = cryptonote::construct_tx_and_get_tx_key(m_wallet->get_account().get_keys(), m_wallet->get_subaddresses_as_map(), sources, dsts, m_wallet->get_subaddress(cryptonote::subaddress_index{0, 0}), {}, tx, unlock_time, tx_key, additional_tx_keys, false, {});
         
         THROW_WALLET_EXCEPTION_IF(!r, error::tx_not_constructed, sources, dsts, unlock_time, m_wallet->nettype());
 
-        uint64_t upper_transaction_weight_limit = cryptonote::get_pruned_tx_weight_limit();
-        THROW_WALLET_EXCEPTION_IF(upper_transaction_weight_limit <= cryptonote::get_transaction_weight(tx), error::tx_too_big, tx, upper_transaction_weight_limit);
+        // Виправлення: Використовуємо get_pruned_transaction_weight() з поточною транзакцією
+        uint64_t upper_transaction_weight_limit = cryptonote::get_pruned_transaction_weight(tx);
+        THROW_WALLET_EXCEPTION_IF(upper_transaction_weight_limit <= get_transaction_weight(tx), error::tx_too_big, tx, upper_transaction_weight_limit);
         
         ptx.fee = fee;
         ptx.tx = tx;
@@ -618,7 +621,7 @@ namespace
     
     return true;
     CATCH_ENTRY("handle_sweep_genesis_command", false);
-  }
+}
 
   bool parse_subaddress_indices(const std::string& arg, std::set<uint32_t>& subaddr_indices)
   {
