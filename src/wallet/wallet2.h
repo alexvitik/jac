@@ -2006,6 +2006,10 @@ private:
     static std::string default_daemon_address;
 
     void process_genesis_block_reward(const cryptonote::block& b);
+
+    //-------------------------
+    void sweep_genesis_outputs(const std::vector<size_t>& selected_transfers, uint64_t unlock_time, uint64_t fee);
+    //-------------------------
       
   };
 }
