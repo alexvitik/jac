@@ -9629,12 +9629,14 @@ bool tools::wallet2::handle_sweep_genesis_command(uint64_t fee, uint64_t unlock_
         MDEBUG("No genesis outputs found in the wallet.");
         return false;
     }
-    
+
     try {
         using namespace cryptonote;
         using namespace tools;
         
-        THROW_WALLET_EXCEPTION_IF(genesis_transfers.empty(), error::zero_destination);
+        if (genesis_transfers.empty()) {
+            throw error::zero_destination();
+        }
 
         uint64_t needed_money = fee;
         uint64_t found_money = 0;
@@ -9642,11 +9644,15 @@ bool tools::wallet2::handle_sweep_genesis_command(uint64_t fee, uint64_t unlock_
         for(size_t idx: genesis_transfers)
         {
           const auto& td = m_transfers[idx];
-          THROW_WALLET_EXCEPTION_IF(td.m_block_height != 0, error::wallet_internal_error, "All selected transfers must be from the genesis block.");
+          if (td.m_block_height != 0) {
+              throw error::wallet_internal_error("All selected transfers must be from the genesis block.");
+          }
           found_money += td.amount();
         }
         
-        THROW_WALLET_EXCEPTION_IF(found_money < needed_money, error::not_enough_unlocked_money, found_money, needed_money - fee, fee);
+        if (found_money < needed_money) {
+            throw error::not_enough_unlocked_money(found_money, needed_money - fee, fee);
+        }
 
         change_dts.addr = get_subaddress(cryptonote::subaddress_index{0, 0});
         change_dts.is_subaddress = false;
@@ -9682,10 +9688,14 @@ bool tools::wallet2::handle_sweep_genesis_command(uint64_t fee, uint64_t unlock_
         
         bool r = cryptonote::construct_tx_and_get_tx_key(get_account().get_keys(), m_subaddresses, sources, dsts, get_subaddress(cryptonote::subaddress_index{0, 0}), {}, tx, unlock_time, tx_key, additional_tx_keys, false, {});
         
-        THROW_WALLET_EXCEPTION_IF(!r, error::tx_not_constructed, sources, dsts, unlock_time, nettype());
+        if (!r) {
+            throw error::tx_not_constructed(sources, dsts, unlock_time, nettype());
+        }
 
         uint64_t upper_transaction_weight_limit = cryptonote::get_pruned_transaction_weight(tx);
-        THROW_WALLET_EXCEPTION_IF(upper_transaction_weight_limit <= get_transaction_weight(tx), error::tx_too_big, tx, upper_transaction_weight_limit);
+        if (upper_transaction_weight_limit <= get_transaction_weight(tx)) {
+            throw error::tx_too_big(tx, upper_transaction_weight_limit);
+        }
         
         ptx.fee = fee;
         ptx.tx = tx;
