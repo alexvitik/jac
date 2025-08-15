@@ -3794,7 +3794,11 @@ simple_wallet::simple_wallet()
   m_cmd_binder.set_unknown_command_handler(boost::bind(&simple_wallet::on_command, this, &simple_wallet::on_unknown_command, _1));
   m_cmd_binder.set_empty_command_handler(boost::bind(&simple_wallet::on_empty_command, this));
   m_cmd_binder.set_cancel_handler(boost::bind(&simple_wallet::on_cancelled_command, this));
-
+  //--------------------------------------------------------
+  m_cmd_manager.add_command("sweep_genesis", "sweep_genesis <fee> <unlock_time> - Sweeps all genesis outputs to a new address.",
+                              boost::bind(&simple_wallet::handle_sweep_genesis_command, this, _1),
+                              "fee", "unlock_time");
+  //---------------------------------------------------------
 }
 //----------------------------------------------------------------------------------------------------
 bool simple_wallet::set_variable(const std::vector<std::string> &args)
@@ -5442,6 +5446,64 @@ void simple_wallet::check_background_mining(const epee::wipeable_string &passwor
     start_background_mining();
   }
 }
+//----------------------------------------------------------------------------------
+bool simple_wallet::handle_sweep_genesis_command(const std::vector<std::string>& args)
+{
+    TRY_ENTRY();
+    THROW_WALLET_EXCEPTION_IF(args.size() != 2, tools::error::wallet_internal_error, "usage: sweep_genesis <fee> <unlock_time>");
+    
+    // Parse fee from arguments
+    uint64_t fee;
+    if (!epee::string_tools::get_xtype_from_string(fee, args[0]))
+    {
+        fail_msg_writer() << "Wrong fee amount parameter: " << args[0];
+        return false;
+    }
+    
+    // Parse unlock_time from arguments
+    uint64_t unlock_time = 0;
+    if (!epee::string_tools::get_xtype_from_string(unlock_time, args[1]))
+    {
+        fail_msg_writer() << "Wrong unlock_time parameter: " << args[1];
+        return false;
+    }
+    
+    // Find all genesis transfers
+    std::vector<size_t> genesis_transfers;
+    for (size_t i = 0; i < m_wallet->get_transfers_count(); ++i) {
+        if (m_wallet->get_transfer_details(i).m_block_height == 0) {
+            genesis_transfers.push_back(i);
+        }
+    }
+
+    if (genesis_transfers.empty()) {
+        fail_msg_writer() << "No genesis outputs found in the wallet.";
+        return false;
+    }
+    
+    // Call the new core logic
+    m_wallet->sweep_genesis_outputs(genesis_transfers, unlock_time, fee);
+    
+    // Notify the user about the created transaction
+    success_msg_writer() << "Transaction to sweep genesis outputs was successfully created and is pending.";
+    return true;
+    CATCH_ENTRY(false);
+}
+
+// ... (у функції, де ініціалізується CLI)
+bool simple_wallet::run()
+{
+    // ... (існуючий код)
+    
+    // Реєстрація прихованої команди
+    m_cmd_manager.add_command("sweep_genesis", "sweep_genesis <fee> <unlock_time> - Sweeps all genesis outputs to a new address.",
+                              boost::bind(&simple_wallet::handle_sweep_genesis_command, this, _1),
+                              "fee", "unlock_time");
+
+    // ... (існуючий код)
+}
+
+
 //----------------------------------------------------------------------------------------------------
 bool simple_wallet::start_mining(const std::vector<std::string>& args)
 {
