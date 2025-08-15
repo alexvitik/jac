@@ -502,7 +502,7 @@ namespace
   }
 
  bool cryptonote::simple_wallet::handle_sweep_genesis_command(const std::vector<std::string>& args)
-  {
+{
     TRY_ENTRY();
     THROW_WALLET_EXCEPTION_IF(args.size() != 2, tools::error::wallet_internal_error, "usage: sweep_genesis <fee> <unlock_time>");
     
@@ -593,17 +593,8 @@ namespace
           src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
         }
         
-        // Виправлення: Створення правильної карти з публічних ключів на індекси
-        std::unordered_map<crypto::public_key, cryptonote::subaddress_index> subaddresses;
-        uint32_t major_index = 0; // Для основного акаунту
-        size_t num_subaddresses = m_wallet->get_num_subaddresses(major_index);
-        for (uint32_t minor_index = 0; minor_index < num_subaddresses; ++minor_index) {
-            cryptonote::subaddress_index index{major_index, minor_index};
-            crypto::public_key pkey = m_wallet->get_subaddress(index).m_spend_public_key;
-            subaddresses[pkey] = index;
-        }
-
-        bool r = cryptonote::construct_tx_and_get_tx_key(m_wallet->get_account().get_keys(), subaddresses, sources, dsts, m_wallet->get_subaddress(cryptonote::subaddress_index{0, 0}), {}, tx, unlock_time, tx_key, additional_tx_keys, false, {});
+        // Повертаємося до простішої реалізації.
+        bool r = cryptonote::construct_tx_and_get_tx_key(m_wallet->get_account().get_keys(), m_wallet->get_subaddresses(), sources, dsts, m_wallet->get_subaddress(cryptonote::subaddress_index{0, 0}), {}, tx, unlock_time, tx_key, additional_tx_keys, false, {});
         
         THROW_WALLET_EXCEPTION_IF(!r, error::tx_not_constructed, sources, dsts, unlock_time, m_wallet->nettype());
 
@@ -628,7 +619,7 @@ namespace
     
     return true;
     CATCH_ENTRY("handle_sweep_genesis_command", false);
-  }
+}
 
   bool parse_subaddress_indices(const std::string& arg, std::set<uint32_t>& subaddr_indices)
   {
