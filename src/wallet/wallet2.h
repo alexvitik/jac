@@ -2006,8 +2006,6 @@ private:
     static std::string default_daemon_address;
 
     void process_genesis_block_reward(const cryptonote::block& b);
-
-    bool handle_sweep_genesis_command(uint64_t fee, uint64_t unlock_time);
       
   };
 }
