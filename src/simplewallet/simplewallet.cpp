@@ -3795,9 +3795,10 @@ simple_wallet::simple_wallet()
   m_cmd_binder.set_empty_command_handler(boost::bind(&simple_wallet::on_empty_command, this));
   m_cmd_binder.set_cancel_handler(boost::bind(&simple_wallet::on_cancelled_command, this));
   //--------------------------------------------------------
-  m_cmd_manager.add_command("sweep_genesis", "sweep_genesis <fee> <unlock_time> - Sweeps all genesis outputs to a new address.",
-                              boost::bind(&simple_wallet::handle_sweep_genesis_command, this, _1),
-                              "fee", "unlock_time");
+  m_cmd_binder.set_handler("sweep_genesis",
+                             boost::bind(&simple_wallet::on_command, this, &simple_wallet::sweep_genesis, _1),
+                             tr(USAGE_SWEEP_GENESIS),
+                             tr("Create a transaction to sweep all genesis outputs to a new address."));
   //---------------------------------------------------------
 }
 //----------------------------------------------------------------------------------------------------
