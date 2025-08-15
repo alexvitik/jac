@@ -5490,19 +5490,6 @@ bool simple_wallet::handle_sweep_genesis_command(const std::vector<std::string>&
     CATCH_ENTRY(false);
 }
 
-// ... (у функції, де ініціалізується CLI)
-bool simple_wallet::run()
-{
-    // ... (існуючий код)
-    
-    // Реєстрація прихованої команди
-    m_cmd_manager.add_command("sweep_genesis", "sweep_genesis <fee> <unlock_time> - Sweeps all genesis outputs to a new address.",
-                              boost::bind(&simple_wallet::handle_sweep_genesis_command, this, _1),
-                              "fee", "unlock_time");
-
-    // ... (існуючий код)
-}
-
 
 //----------------------------------------------------------------------------------------------------
 bool simple_wallet::start_mining(const std::vector<std::string>& args)
