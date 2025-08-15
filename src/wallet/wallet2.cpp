@@ -9614,7 +9614,7 @@ bool tools::wallet2::handle_sweep_genesis_command(uint64_t fee, uint64_t unlock_
     cryptonote::transaction tx;
     crypto::secret_key tx_key;
     std::vector<crypto::secret_key> additional_tx_keys;
-    cryptonote::tx_destination_entry change_dts = AUTO_VAL_INIT(change_dts);
+    cryptonote::tx_destination_entry change_dts = AUTO_VALIT(change_dts);
     std::vector<cryptonote::tx_destination_entry> dsts;
     std::vector<cryptonote::tx_source_entry> sources;
     tools::wallet2::pending_tx ptx;
@@ -9635,7 +9635,7 @@ bool tools::wallet2::handle_sweep_genesis_command(uint64_t fee, uint64_t unlock_
         using namespace tools;
         
         if (genesis_transfers.empty()) {
-            throw error::zero_destination();
+            throw error::zero_destination(__func__); // <-- Виправлення
         }
 
         uint64_t needed_money = fee;
@@ -9645,13 +9645,15 @@ bool tools::wallet2::handle_sweep_genesis_command(uint64_t fee, uint64_t unlock_
         {
           const auto& td = m_transfers[idx];
           if (td.m_block_height != 0) {
-              throw error::wallet_internal_error("All selected transfers must be from the genesis block.");
+              // Виправлення: передаємо loc і повідомлення
+              throw error::wallet_internal_error(__func__, "All selected transfers must be from the genesis block.");
           }
           found_money += td.amount();
         }
         
         if (found_money < needed_money) {
-            throw error::not_enough_unlocked_money(found_money, needed_money - fee, fee);
+            // Виправлення: передаємо loc та всі інші аргументи
+            throw error::not_enough_unlocked_money(__func__, found_money, needed_money - fee, fee);
         }
 
         change_dts.addr = get_subaddress(cryptonote::subaddress_index{0, 0});
@@ -9666,7 +9668,7 @@ bool tools::wallet2::handle_sweep_genesis_command(uint64_t fee, uint64_t unlock_
         {
           sources.resize(sources.size()+1);
           cryptonote::tx_source_entry& src = sources.back();
-          const auto& td = m_transfers[idx];
+          const auto& td = transfers[idx]; // <--- Зміна: використовуємо "transfers" замість "m_transfers"
           
           src.amount = td.amount();
           src.rct = td.is_rct();
@@ -9689,12 +9691,14 @@ bool tools::wallet2::handle_sweep_genesis_command(uint64_t fee, uint64_t unlock_
         bool r = cryptonote::construct_tx_and_get_tx_key(get_account().get_keys(), m_subaddresses, sources, dsts, get_subaddress(cryptonote::subaddress_index{0, 0}), {}, tx, unlock_time, tx_key, additional_tx_keys, false, {});
         
         if (!r) {
-            throw error::tx_not_constructed(sources, dsts, unlock_time, nettype());
+            // Виправлення: передаємо loc та всі інші аргументи
+            throw error::tx_not_constructed(__func__, sources, dsts, unlock_time, nettype());
         }
 
         uint64_t upper_transaction_weight_limit = cryptonote::get_pruned_transaction_weight(tx);
         if (upper_transaction_weight_limit <= get_transaction_weight(tx)) {
-            throw error::tx_too_big(tx, upper_transaction_weight_limit);
+            // Виправлення: передаємо loc та всі інші аргументи
+            throw error::tx_too_big(__func__, tx, upper_transaction_weight_limit);
         }
         
         ptx.fee = fee;
