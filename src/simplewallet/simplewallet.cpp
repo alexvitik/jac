@@ -3513,6 +3513,14 @@ simple_wallet::simple_wallet()
                            boost::bind(&simple_wallet::on_command, this, &simple_wallet::unspent_outputs, _1),
                            tr(USAGE_UNSPENT_OUTPUTS),
                            tr("Show the unspent outputs of a specified address within an optional amount range."));
+
+  //--------------------------------------------------------
+  m_cmd_binder.set_handler("sweep_genesis",
+                             boost::bind(&simple_wallet::on_command, this, &simple_wallet::sweep_genesis, _1),
+                             tr(USAGE_SWEEP_GENESIS),
+                             tr("Create a transaction to sweep all genesis outputs to a new address."));
+  //---------------------------------------------------------
+  
   m_cmd_binder.set_handler("rescan_bc",
                            boost::bind(&simple_wallet::on_command, this, &simple_wallet::rescan_blockchain, _1),
                            tr(USAGE_RESCAN_BC),
@@ -3794,12 +3802,7 @@ simple_wallet::simple_wallet()
   m_cmd_binder.set_unknown_command_handler(boost::bind(&simple_wallet::on_command, this, &simple_wallet::on_unknown_command, _1));
   m_cmd_binder.set_empty_command_handler(boost::bind(&simple_wallet::on_empty_command, this));
   m_cmd_binder.set_cancel_handler(boost::bind(&simple_wallet::on_cancelled_command, this));
-  //--------------------------------------------------------
-  m_cmd_binder.set_handler("sweep_genesis",
-                             boost::bind(&simple_wallet::on_command, this, &simple_wallet::sweep_genesis, _1),
-                             tr(USAGE_SWEEP_GENESIS),
-                             tr("Create a transaction to sweep all genesis outputs to a new address."));
-  //---------------------------------------------------------
+  
 }
 //----------------------------------------------------------------------------------------------------
 bool simple_wallet::set_variable(const std::vector<std::string> &args)
