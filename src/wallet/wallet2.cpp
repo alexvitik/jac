@@ -9647,16 +9647,16 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
       const transfer_details& td = m_transfers[idx];
       
       src.amount = td.amount();
-      src.rct = td.is_rct();
-      src.real_output_in_tx_index = td.m_internal_output_index;
+      src.rct = false;
+      src.real_out_tx_key = cryptonote::null_pkey;
       src.mask = td.m_mask;
       src.real_output = 0; 
       
       tx_output_entry real_oe;
-      real_oe.first = td.m_global_output_index;
-      real_oe.second.dest = rct::pk2rct(crypto::null_pkey);
-      real_oe.second.mask = rct::commit(td.amount(), rct::identity());
-      src.outputs.push_back(real_oe);
+	  real_oe.first = td.m_global_output_index;
+	  real_oe.second.dest = rct::pk2rct(td.m_public_key); // Use the real public key from transfer details
+	  real_oe.second.mask = rct::identity();
+	  src.outputs.push_back(real_oe);
 
       src.real_out_tx_key = cryptonote::null_pkey; 
       src.real_out_additional_tx_keys = cryptonote::get_additional_tx_pub_keys_from_extra(td.m_tx);
