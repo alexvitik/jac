@@ -9642,15 +9642,13 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     LOG_PRINT_L2("Accessing transfer details from index: " << selected_transfers[0]);
 
     // *******************************************************************
-    // ВИПРАВЛЕНО: Ре-генеруємо публічний ключ виходу, використовуючи ту
-    // саму логіку, що й при обробці блоку 0, оскільки він не кешується.
+    // ВИПРАВЛЕНО: Ре-генеруємо публічний ключ виходу.
     // *******************************************************************
     crypto::public_key output_public_key;
     crypto::key_derivation derivation;
     crypto::secret_key sk = get_account().get_keys().m_view_secret_key;
 
     // Отримуємо публічний ключ транзакції з `extra` поля.
-    // Це єдиний спосіб отримати його з `transfer_details` на цьому старому коді.
     crypto::public_key tx_pub_key_from_extra;
     std::vector<cryptonote::tx_extra_field> tx_extra_fields;
     if(!parse_tx_extra(td.m_tx.extra, tx_extra_fields))
@@ -9660,7 +9658,8 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     if(!find_tx_extra_field_by_type(tx_extra_fields, pub_key_field, 0))
         throw tools::error::wallet_internal_error(__func__, "Public key wasn't found in the transaction extra");
 
-    tx_pub_key_from_extra = pub_key_field.m_pub_key;
+    // ВИПРАВЛЕНО: Змінено `m_pub_key` на `pub_key` на основі наданої вами структури
+    tx_pub_key_from_extra = pub_key_field.pub_key;
     
     if (tx_pub_key_from_extra == crypto::null_pkey) {
         throw tools::error::wallet_internal_error(__func__, "Failed to get transaction public key from received outputs extra.");
@@ -9724,7 +9723,7 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     ptx.tx = tx_new;
     ptx.dust_added_to_fee = 0;
     ptx.fee = fee;
-    ptx.amount = found_money - fee;
+    // ВИПРАВЛЕНО: Видалено ptx.amount = found_money - fee; на основі наданої вами структури
     ptx.selected_transfers.assign(selected_transfers.begin(), selected_transfers.end());
     ptx_vector.push_back(ptx);
 }
