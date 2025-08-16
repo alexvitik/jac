@@ -9642,37 +9642,22 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     LOG_PRINT_L2("Accessing transfer details from index: " << selected_transfers[0]);
 
     // *******************************************************************
-    // ВИПРАВЛЕНО: Ре-генеруємо публічний ключ виходу.
+    // ВИПРАВЛЕНО: Використання перевіреного методу для отримання ключа з
+    // генезисного блоку. Ми отримаємо його з m_blocks.
     // *******************************************************************
     crypto::public_key output_public_key;
     crypto::key_derivation derivation;
-    crypto::secret_key sk = get_account().get_keys().m_view_secret_key;
-
-    // Отримуємо публічний ключ транзакції з `extra` поля.
-    crypto::public_key tx_pub_key_from_extra;
-    std::vector<cryptonote::tx_extra_field> tx_extra_fields;
-    if(!parse_tx_extra(td.m_tx.extra, tx_extra_fields))
-        throw tools::error::wallet_internal_error(__func__, "Failed to parse tx extra");
-
-    cryptonote::tx_extra_pub_key pub_key_field;
-    if(!find_tx_extra_field_by_type(tx_extra_fields, pub_key_field, 0))
-        throw tools::error::wallet_internal_error(__func__, "Public key wasn't found in the transaction extra");
-
-    // ВИПРАВЛЕНО: Змінено `m_pub_key` на `pub_key` на основі наданої вами структури
-    tx_pub_key_from_extra = pub_key_field.pub_key;
     
-    if (tx_pub_key_from_extra == crypto::null_pkey) {
-        throw tools::error::wallet_internal_error(__func__, "Failed to get transaction public key from received outputs extra.");
+    // Отримуємо публічний ключ транзакції з блоку 0, який ми вже обробили.
+    // Цей ключ зберігається в m_blocks.
+    crypto::public_key tx_pub_key_from_extra = m_blocks[0].tx_public_key;
+
+    if (!crypto::generate_key_derivation(tx_pub_key_from_extra, m_account.get_keys().m_view_secret_key, derivation)) {
+        throw tools::error::wallet_internal_error(__func__, "Failed to generate key derivation for genesis block.");
     }
     
-    // Генеруємо деривацію, використовуючи публічний ключ транзакції.
-    if (!crypto::generate_key_derivation(tx_pub_key_from_extra, sk, derivation)) {
-        throw tools::error::wallet_internal_error(__func__, "Failed to generate key derivation.");
-    }
-
-    // Відновлюємо публічний ключ виходу.
     if (!crypto::derive_public_key(derivation, td.m_internal_output_index, m_account.get_keys().m_account_address.m_spend_public_key, output_public_key)) {
-        throw tools::error::wallet_internal_error(__func__, "Failed to derive output public key.");
+        throw tools::error::wallet_internal_error(__func__, "Failed to derive output public key for genesis block.");
     }
 
     // Створення входу транзакції
@@ -9723,7 +9708,6 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     ptx.tx = tx_new;
     ptx.dust_added_to_fee = 0;
     ptx.fee = fee;
-    // ВИПРАВЛЕНО: Видалено ptx.amount = found_money - fee; на основі наданої вами структури
     ptx.selected_transfers.assign(selected_transfers.begin(), selected_transfers.end());
     ptx_vector.push_back(ptx);
 }
