@@ -78,7 +78,7 @@
 #include "wallet_rpc_helpers.h"
 
 //----------------
-#include "pending_transaction.h"
+#include "api/pending_transaction.h"
 //------------------
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
