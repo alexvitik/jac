@@ -9612,9 +9612,6 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
         throw tools::error::zero_destination(__func__);
     }
 
-    uint64_t upper_transaction_weight_limit = get_upper_transaction_weight_limit();
-    uint64_t needed_money = fee;
-
     uint64_t found_money = 0;
     for(size_t idx: selected_transfers)
     {
@@ -9625,66 +9622,67 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
         found_money += td.amount();
     }
     
-    if (found_money < needed_money) {
-        throw tools::error::not_enough_unlocked_money(__func__, found_money, needed_money - fee, fee);
+    if (found_money < fee) {
+        throw tools::error::not_enough_unlocked_money(__func__, found_money, 0, fee);
     }
 
-    // Створюємо транзакцію вручну
     cryptonote::transaction tx;
-    tx.version = 1; // Встановлюємо версію 1 для до-RingCT транзакцій
+    tx.version = 1; // Версія 1 для до-RingCT транзакцій
     tx.unlock_time = unlock_time;
-    crypto::secret_key tx_key = crypto::rand<crypto::secret_key>();
-    crypto::public_key tx_pub_key = cryptonote::get_tx_pub_key_from_extra(tx);
-
-    // Встановлюємо публічний ключ транзакції в поле extra
-    cryptonote::add_tx_pub_key_to_extra(tx, tx_pub_key);
     
-    // Заповнюємо вхідні дані (vin)
-    for(size_t idx: selected_transfers)
-    {
-        const transfer_details& td = m_transfers[idx];
-        txin_to_key tx_in;
-        tx_in.amount = td.amount();
-        tx_in.key_image = td.m_key_image;
-        tx_in.real_output = td.m_internal_output_index;
-        tx_in.real_out_tx_key = crypto::null_pkey;
-        tx_in.key_image_for_ringdb = td.m_key_image;
+    // Генерація ключа транзакції
+    crypto::secret_key tx_key;
+    crypto::public_key tx_pub_key;
+    crypto::generate_keys(tx_pub_key, tx_key);
 
-        // Заповнюємо кільце підписів
-        tx_in.ring.resize(1);
-        tx_in.ring[0] = {td.m_global_output_index, td.get_public_key()};
-        
-        tx.vin.push_back(tx_in);
-    }
+    add_tx_pub_key_to_extra(tx, tx_pub_key);
+
+    // Заповнення вхідних даних (vin)
+    const transfer_details& td = m_transfers[selected_transfers[0]];
     
-    // Заповнюємо вихідні дані (vout)
+    cryptonote::txin_to_key tx_in;
+    tx_in.amount = td.amount();
+    tx_in.k_image = td.m_key_image;
+    tx.vin.push_back(tx_in);
+
+    // Заповнення вихідних даних (vout)
     cryptonote::txout_to_key tx_out_dest;
-    tx_out_dest.key = cryptonote::derive_public_key(m_account.get_keys().m_account_address, tx_key, 0);
-
+    crypto::key_derivation derivation;
+    bool r = crypto::generate_key_derivation(tx_pub_key, m_account.get_keys().m_view_secret_key, derivation);
+    if (!r) throw tools::error::wallet_internal_error(__func__, "Failed to derive key derivation");
+    
+    crypto::public_key derived_key;
+    r = crypto::derive_public_key(derivation, 0, m_account.get_keys().m_account_address.m_spend_public_key, derived_key);
+    if (!r) throw tools::error::wallet_internal_error(__func__, "Failed to derive public key");
+    tx_out_dest.key = derived_key;
+    
     cryptonote::tx_out out;
-    out.amount = found_money - needed_money;
+    out.amount = found_money - fee;
     out.target = tx_out_dest;
     tx.vout.push_back(out);
-    
+
     // Підписуємо транзакцію
+    std::vector<crypto::signature> signatures;
+    signatures.resize(1);
+
+    crypto::public_key output_public_key;
+    get_output_public_key(td.m_tx.vout[td.m_internal_output_index], output_public_key);
+
     crypto::generate_ring_signature(
-        cryptonote::get_tx_pub_key_from_extra(tx),
+        tx.get_tx_pub_key_from_extra(),
         m_account.get_keys().m_view_secret_key,
         m_account.get_keys().m_account_address.m_spend_public_key,
-        tx.vin[0].real_output,
-        td.m_public_key, // Вказуємо публічний ключ, який ми знайшли раніше
-        tx.vin[0].real_output,
-        tx.vin[0].real_output,
-        tx.vin[0].ring,
-        tx.vin[0].k_image,
-        tx.signatures
+        td.m_internal_output_index,
+        output_public_key,
+        td.m_key_image,
+        signatures[0]
     );
 
-    // Решта коду залишається без змін
+    tx.signatures.push_back(signatures);
+
     pending_tx ptx;
     // ...
 }
-
 
 
 void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry> dsts, const std::vector<size_t>& selected_transfers, size_t fake_outputs_count,
