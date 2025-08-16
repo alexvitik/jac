@@ -9630,8 +9630,9 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     tx.version = 1;
     tx.unlock_time = unlock_time;
     
-    crypto::secret_key tx_key = crypto::rand<crypto::secret_key>();
-    crypto::public_key tx_pub_key = cryptonote::get_tx_pub_key_from_extra(tx);
+    crypto::public_key tx_pub_key;
+    crypto::secret_key tx_key;
+    crypto::generate_keys(tx_pub_key, tx_key);
 
     add_tx_pub_key_to_extra(tx, tx_pub_key);
 
@@ -9640,7 +9641,7 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     cryptonote::txin_to_key tx_in;
     tx_in.amount = td.amount();
     tx_in.k_image = td.m_key_image;
-    tx_in.key_offsets.push_back(0);
+    tx_in.key_offsets.push_back(td.m_global_output_index);
 
     tx.vin.push_back(tx_in);
 
@@ -9660,20 +9661,23 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     tx.vout.push_back(out);
     
     //--------------------------------------------------------------------------
-    // Підписуємо транзакцію, використовуючи вже існуючі дані
+    // Виправлений підпис
     //--------------------------------------------------------------------------
     crypto::public_key output_public_key = td.get_public_key();
     crypto::hash tx_prefix_hash = get_transaction_prefix_hash(tx);
     std::vector<crypto::signature> signatures(1);
-    
+
+    const crypto::public_key* pubs[1];
+    pubs[0] = &output_public_key;
+
     crypto::generate_ring_signature(
         tx_prefix_hash,
         td.m_key_image,
-        &output_public_key,
+        pubs,
         1,
         m_account.get_keys().m_spend_secret_key,
         0,
-        signatures[0]
+        &signatures[0]
     );
 
     tx.signatures.push_back(signatures);
