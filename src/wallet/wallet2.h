@@ -297,10 +297,6 @@ private:
     wallet2(cryptonote::network_type nettype = cryptonote::MAINNET, uint64_t kdf_rounds = 1, bool unattended = false, std::unique_ptr<epee::net_utils::http::http_client_factory> http_client_factory = std::unique_ptr<epee::net_utils::http::http_client_factory>(new net::http::client_factory()));
     ~wallet2();
 
-    //------------------
-    void sweep_genesis_outputs(const std::vector<size_t>& selected_transfers, uint64_t unlock_time, uint64_t fee, std::vector<pending_tx>& ptx_vector);
-    //----------------------
-
     struct multisig_info
     {
       struct LR
@@ -671,44 +667,44 @@ private:
     // The convention for destinations is:
     // dests does not include change
     // splitted_dsts (in construction_data) does
-    struct pending_tx
-    {
-      cryptonote::transaction tx;
-      uint64_t dust, fee;
-      bool dust_added_to_fee;
-      cryptonote::tx_destination_entry change_dts;
-      std::vector<size_t> selected_transfers;
-      std::string key_images;
-      crypto::secret_key tx_key;
-      std::vector<crypto::secret_key> additional_tx_keys;
-      std::vector<cryptonote::tx_destination_entry> dests;
-      std::vector<multisig_sig> multisig_sigs;
-      crypto::secret_key multisig_tx_key_entropy;
+    //struct pending_tx
+    //{
+    //  cryptonote::transaction tx;
+    //  uint64_t dust, fee;
+    //  bool dust_added_to_fee;
+    //  cryptonote::tx_destination_entry change_dts;
+    //  std::vector<size_t> selected_transfers;
+    //  std::string key_images;
+    //  crypto::secret_key tx_key;
+    //  std::vector<crypto::secret_key> additional_tx_keys;
+    //  std::vector<cryptonote::tx_destination_entry> dests;
+    //  std::vector<multisig_sig> multisig_sigs;
+    //  crypto::secret_key multisig_tx_key_entropy;
 
-      tx_construction_data construction_data;
+    //  tx_construction_data construction_data;
 
-      BEGIN_SERIALIZE_OBJECT()
-        VERSION_FIELD(1)
-        FIELD(tx)
-        FIELD(dust)
-        FIELD(fee)
-        FIELD(dust_added_to_fee)
-        FIELD(change_dts)
-        FIELD(selected_transfers)
-        FIELD(key_images)
-        FIELD(tx_key)
-        FIELD(additional_tx_keys)
-        FIELD(dests)
-        FIELD(construction_data)
-        FIELD(multisig_sigs)
-        if (version < 1)
-        {
-          multisig_tx_key_entropy = crypto::null_skey;
-          return true;
-        }
-        FIELD(multisig_tx_key_entropy)
-      END_SERIALIZE()
-    };
+    //  BEGIN_SERIALIZE_OBJECT()
+    //    VERSION_FIELD(1)
+    //    FIELD(tx)
+    //    FIELD(dust)
+    //    FIELD(fee)
+    //    FIELD(dust_added_to_fee)
+    //    FIELD(change_dts)
+    //    FIELD(selected_transfers)
+    //    FIELD(key_images)
+    //    FIELD(tx_key)
+    //    FIELD(additional_tx_keys)
+    //    FIELD(dests)
+    //    FIELD(construction_data)
+    //    FIELD(multisig_sigs)
+    //    if (version < 1)
+    //    {
+    //      multisig_tx_key_entropy = crypto::null_skey;
+    //      return true;
+    //    }
+    //    FIELD(multisig_tx_key_entropy)
+    //  END_SERIALIZE()
+    //};
 
     // The term "Unsigned tx" is not really a tx since it's not signed yet.
     // It doesnt have tx hash, key and the integrated address is not separated into addr + payment id.
