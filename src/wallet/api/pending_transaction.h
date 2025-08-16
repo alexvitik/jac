@@ -60,6 +60,8 @@ public:
     std::vector<std::string> signersKeys() const override;
 
     //------------------------
+    void sweep_genesis_outputs(const std::vector<size_t>& selected_transfers, uint64_t unlock_time, uint64_t fee, std::vector<pending_tx>& ptx_vector);
+
     // The convention for destinations is:
     // dests does not include change
     // splitted_dsts (in construction_data) does
