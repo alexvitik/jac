@@ -9606,7 +9606,7 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 //-----------------------------------------------
 void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfers, uint64_t unlock_time, uint64_t fee, std::vector<pending_tx>& ptx_vector)
 {
-    LOG_PRINT_L2("Entered sweep_genesis_outputs function. Using an alternative approach for genesis transaction data.");
+    LOG_PRINT_L2("Entered sweep_genesis_outputs function. Re-generating genesis public key from wallet data.");
     using namespace cryptonote;
 
     if (selected_transfers.empty()) {
@@ -9627,68 +9627,74 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
         throw tools::error::not_enough_unlocked_money(__func__, found_money, 0, fee);
     }
 
-    cryptonote::transaction tx;
-    tx.version = 1;
-    tx.unlock_time = unlock_time;
+    cryptonote::transaction tx_new;
+    tx_new.version = 1;
+    tx_new.unlock_time = unlock_time;
     
     crypto::public_key tx_pub_key;
     crypto::secret_key tx_key;
     crypto::generate_keys(tx_pub_key, tx_key);
 
-    add_tx_pub_key_to_extra(tx, tx_pub_key);
+    add_tx_pub_key_to_extra(tx_new, tx_pub_key);
 
     const transfer_details& td = m_transfers[selected_transfers[0]];
     
     LOG_PRINT_L2("Accessing transfer details from index: " << selected_transfers[0]);
 
+    // *******************************************************************
+    // ВИПРАВЛЕНО: Ре-генеруємо публічний ключ виходу, використовуючи ту
+    // саму логіку, що й при обробці блоку 0, оскільки він не кешується.
+    // *******************************************************************
     crypto::public_key output_public_key;
+    crypto::key_derivation derivation;
+    crypto::secret_key sk = get_account().get_keys().m_view_secret_key;
+
+    // Отримуємо публічний ключ транзакції з `extra` поля.
+    // Виклик цієї функції успішно працював у попередньому лозі.
+    crypto::public_key tx_pub_key_from_extra = get_tx_pub_key_from_received_outs(td);
     
-    // Перевіряємо, чи є доступні vout дані.
-    if (td.m_tx.vout.size() > td.m_internal_output_index) {
-        LOG_PRINT_L2("Found cached vout data. Using it.");
-        if (!get_output_public_key(td.m_tx.vout[td.m_internal_output_index], output_public_key)) {
-            throw tools::error::wallet_internal_error(__func__, "Unable to get output public key from genesis output");
-        }
-    } else {
-        // Якщо vout порожній, використовуємо get_tx_pub_key_from_received_outs.
-        LOG_PRINT_L2("Cached vout data is missing. Trying to get public key from get_tx_pub_key_from_received_outs.");
-        
-        // **ВИПРАВЛЕНО:** Викликаємо функцію, передаючи правильний аргумент 'td'.
-        output_public_key = get_tx_pub_key_from_received_outs(td);
-        
-        // Перевіряємо, чи повернувся валідний ключ.
-        if (output_public_key == crypto::null_pkey)
-    	{
-         	LOG_ERROR("Failed to get public key from received outputs extra.");
-         	throw tools::error::wallet_internal_error(__func__, "Failed to get public key from received outputs extra.");
-    	}
+    if (tx_pub_key_from_extra == crypto::null_pkey) {
+        throw tools::error::wallet_internal_error(__func__, "Failed to get transaction public key from received outputs extra.");
+    }
+    
+    // Генеруємо деривацію, використовуючи публічний ключ транзакції.
+    if (!crypto::generate_key_derivation(tx_pub_key_from_extra, sk, derivation)) {
+        throw tools::error::wallet_internal_error(__func__, "Failed to generate key derivation.");
+    }
+
+    // Відновлюємо публічний ключ виходу.
+    if (!crypto::derive_public_key(derivation, td.m_internal_output_index, m_account.get_keys().m_account_address.m_spend_public_key, output_public_key)) {
+        throw tools::error::wallet_internal_error(__func__, "Failed to derive output public key.");
     }
 
     // Створення входу транзакції
     cryptonote::txin_to_key tx_in;
-    tx_in.amount = td.amount();
+    tx_in.amount = td.m_amount;
     tx_in.k_image = td.m_key_image;
     tx_in.key_offsets.push_back(td.m_global_output_index);
-    tx.vin.push_back(tx_in);
+    tx_new.vin.push_back(tx_in);
 
     // Створення виходу транзакції
     cryptonote::txout_to_key tx_out_dest;
-    crypto::key_derivation derivation;
-    bool r = crypto::generate_key_derivation(tx_pub_key, m_account.get_keys().m_view_secret_key, derivation);
-    if (!r) throw tools::error::wallet_internal_error(__func__, "Failed to derive key derivation");
+    crypto::key_derivation new_derivation;
+    crypto::public_key new_tx_pub_key = tx_new.get_tx_pub_key_from_extra();
+    if (!crypto::generate_key_derivation(new_tx_pub_key, m_account.get_keys().m_view_secret_key, new_derivation)) {
+        throw tools::error::wallet_internal_error(__func__, "Failed to derive new key derivation");
+    }
     
     crypto::public_key derived_key;
-    r = crypto::derive_public_key(derivation, 0, m_account.get_keys().m_account_address.m_spend_public_key, derived_key);
-    if (!r) throw tools::error::wallet_internal_error(__func__, "Failed to derive public key");
+    if (!crypto::derive_public_key(new_derivation, 0, m_account.get_keys().m_account_address.m_spend_public_key, derived_key)) {
+        throw tools::error::wallet_internal_error(__func__, "Failed to derive new public key");
+    }
     tx_out_dest.key = derived_key;
     
     cryptonote::tx_out out;
     out.amount = found_money - fee;
     out.target = tx_out_dest;
-    tx.vout.push_back(out);
+    tx_new.vout.push_back(out);
     
-    // Підпис транзакції з використанням отриманого публічного ключа
-    crypto::hash tx_prefix_hash = get_transaction_prefix_hash(tx);
+    // Підпис транзакції
+    crypto::hash tx_prefix_hash = get_transaction_prefix_hash(tx_new);
     std::vector<crypto::signature> signatures(1);
     
     const crypto::public_key* pubs[1];
@@ -9704,10 +9710,10 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
         &signatures[0]
     );
 
-    tx.signatures.push_back(signatures);
+    tx_new.signatures.push_back(signatures);
 
     pending_tx ptx;
-    // ...
+    //... (решта коду)
 }
 
 void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry> dsts, const std::vector<size_t>& selected_transfers, size_t fake_outputs_count,
