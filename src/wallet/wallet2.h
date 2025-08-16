@@ -65,6 +65,10 @@
 #include "serialization/pair.h"
 #include "serialization/tuple.h"
 #include "serialization/containers.h"
+//------------------------
+#include "cryptonote_basic/cryptonote_basic.h"
+#include "crypto/crypto.h"
+//-----------------------
 
 #include "wallet_errors.h"
 #include "common/password.h"
@@ -292,17 +296,6 @@ private:
     ~wallet2();
 
     //------------------
-    struct pending_tx
-    {
-      cryptonote::tx_construction_data tx_construction_data;
-      cryptonote::transaction tx;
-      uint64_t dust_added;
-      std::vector<size_t> selected_transfers;
-      std::string key_images_as_string;
-      std::string tx_key;
-      std::string dsc_as_string;
-      uint64_t creation_timestamp;
-    };
     void sweep_genesis_outputs(const std::vector<size_t>& selected_transfers, uint64_t unlock_time, uint64_t fee, std::vector<pending_tx>& ptx_vector);
     //----------------------
 
