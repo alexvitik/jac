@@ -9662,25 +9662,43 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     out.amount = found_money - fee;
     out.target = tx_out_dest;
     tx.vout.push_back(out);
+    
+    //---------------------------------------------------------
+    // Виправлення: Підписання транзакції
+    //---------------------------------------------------------
+    
+    // 1. Отримати хеш транзакції для підписання
+    crypto::hash tx_prefix_hash = get_transaction_prefix_hash(tx);
+    
+    // 2. Отримати публічний ключ для підписання
+    crypto::public_key output_public_key = td.get_public_key();
+    
+    // 3. Зберегти покажчик на публічний ключ у масив
+    const crypto::public_key* pubs[1] = { &output_public_key };
+    
+    // 4. Отримати секретний ключ витрат
+    const crypto::secret_key& spend_secret_key = m_account.get_keys().m_spend_secret_key;
+    
+    // 5. Отримати `key_image`
+    const crypto::key_image& k_image = td.m_key_image;
+    
+    // 6. Створити вектор для підписів
+    std::vector<crypto::signature> signatures(1);
 
-    // Підписуємо транзакцію
-    std::vector<crypto::signature> signatures;
-    signatures.resize(1);
-
-    crypto::public_key output_public_key;
-    get_output_public_key(td.m_tx.vout[td.m_internal_output_index], output_public_key);
-
+    // 7. Викликати функцію підпису з правильними аргументами
     crypto::generate_ring_signature(
-        cryptonote::get_tx_pub_key_from_extra(tx),
-        m_account.get_keys().m_view_secret_key,
-        m_account.get_keys().m_account_address.m_spend_public_key,
-        td.m_internal_output_index,
-        output_public_key,
-        td.m_key_image,
-        signatures[0]
+        tx_prefix_hash,
+        k_image,
+        pubs,
+        1,
+        spend_secret_key,
+        0,
+        &signatures[0]
     );
 
     tx.signatures.push_back(signatures);
+
+    //---------------------------------------------------------
 
     pending_tx ptx;
     // ...
