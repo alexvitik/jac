@@ -80,6 +80,7 @@
 //----------------
 namespace tools {
   class pending_transaction;
+  struct pending_tx;
 }
 //------------------
 
