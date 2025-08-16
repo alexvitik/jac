@@ -9650,7 +9650,7 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
   		src.rct = false; // Виправлено: явно вказуємо, що це не RingCT
   		src.real_output_in_tx_index = td.m_internal_output_index;
   		src.mask = rct::identity(); // Заповнюємо, щоб уникнути помилок
-  		src.real_output = td.m_output_index;
+  		src.real_output = 0;
 
   		tx_output_entry real_oe;
   		real_oe.first = td.m_global_output_index;
