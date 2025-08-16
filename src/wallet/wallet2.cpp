@@ -9675,23 +9675,24 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     tx_new.vin.push_back(tx_in);
 
     // Створення виходу транзакції
-    cryptonote::txout_to_key tx_out_dest;
-    crypto::key_derivation new_derivation;
-    crypto::public_key new_tx_pub_key = tx_new.get_tx_pub_key_from_extra();
-    if (!crypto::generate_key_derivation(new_tx_pub_key, m_account.get_keys().m_view_secret_key, new_derivation)) {
-        throw tools::error::wallet_internal_error(__func__, "Failed to derive new key derivation");
-    }
+	cryptonote::txout_to_key tx_out_dest;
+	crypto::key_derivation new_derivation;
+
+	// **ВИПРАВЛЕНО:** Використовуємо вже згенерований `tx_pub_key` замість спроби його витягнути з `extra`.
+	if (!crypto::generate_key_derivation(tx_pub_key, m_account.get_keys().m_view_secret_key, new_derivation)) {
+    	throw tools::error::wallet_internal_error(__func__, "Failed to derive new key derivation");
+	}
+
+	crypto::public_key derived_key;
+	if (!crypto::derive_public_key(new_derivation, 0, m_account.get_keys().m_account_address.m_spend_public_key, derived_key)) {
+    	throw tools::error::wallet_internal_error(__func__, "Failed to derive new public key");
+	}
+	tx_out_dest.key = derived_key;
     
-    crypto::public_key derived_key;
-    if (!crypto::derive_public_key(new_derivation, 0, m_account.get_keys().m_account_address.m_spend_public_key, derived_key)) {
-        throw tools::error::wallet_internal_error(__func__, "Failed to derive new public key");
-    }
-    tx_out_dest.key = derived_key;
-    
-    cryptonote::tx_out out;
-    out.amount = found_money - fee;
-    out.target = tx_out_dest;
-    tx_new.vout.push_back(out);
+	cryptonote::tx_out out;
+	out.amount = found_money - fee;
+	out.target = tx_out_dest;
+	tx_new.vout.push_back(out);
     
     // Підпис транзакції
     crypto::hash tx_prefix_hash = get_transaction_prefix_hash(tx_new);
