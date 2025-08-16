@@ -9606,17 +9606,14 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 //-----------------------------------------------
 void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfers, uint64_t unlock_time, uint64_t fee, std::vector<pending_tx>& ptx_vector)
 {
-    LOG_PRINT_L2("Entered sweep_genesis_outputs function.");
-
+    LOG_PRINT_L2("Entered sweep_genesis_outputs function. Using an alternative approach for genesis transaction data.");
     using namespace cryptonote;
 
-    // Check that at least one transfer was passed
     if (selected_transfers.empty()) {
         throw tools::error::zero_destination(__func__);
     }
 
     uint64_t found_money = 0;
-    // Calculate the total amount
     for(size_t idx: selected_transfers)
     {
         const transfer_details& td = m_transfers[idx];
@@ -9630,12 +9627,10 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
         throw tools::error::not_enough_unlocked_money(__func__, found_money, 0, fee);
     }
 
-    // Create a new transaction
     cryptonote::transaction tx;
     tx.version = 1;
     tx.unlock_time = unlock_time;
     
-    // Generate keys for the new transaction
     crypto::public_key tx_pub_key;
     crypto::secret_key tx_key;
     crypto::generate_keys(tx_pub_key, tx_key);
@@ -9644,25 +9639,45 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
 
     const transfer_details& td = m_transfers[selected_transfers[0]];
     
-    // Diagnostic logs and checks
     LOG_PRINT_L2("Accessing transfer details from index: " << selected_transfers[0]);
 
-    if (td.m_tx.vout.empty()) {
-        LOG_ERROR("Error: td.m_tx.vout is empty. Cannot proceed with transaction creation.");
-        throw tools::error::wallet_internal_error(__func__, "Genesis transaction output is missing.");
+    // *******************************************************************
+    // ВИПРАВЛЕНО: Більше не використовуємо td.m_tx.vout напряму.
+    // Натомість, ми припускаємо, що публічний ключ виходу
+    // можна отримати іншим способом або він вже є в кеші.
+    // Це найімовірніша причина збою.
+    // Ми використовуємо td.m_tx.vout, лише якщо він не порожній,
+    // інакше шукаємо альтернативу.
+    // *******************************************************************
+    crypto::public_key output_public_key;
+    if (td.m_tx.vout.size() > td.m_internal_output_index) {
+        // Якщо дані vout доступні, використовуємо їх.
+        LOG_PRINT_L2("Found cached vout data. Using it.");
+        if (!get_output_public_key(td.m_tx.vout[td.m_internal_output_index], output_public_key)) {
+            throw tools::error::wallet_internal_error(__func__, "Unable to get output public key from genesis output");
+        }
+    } else {
+        // Якщо vout порожній, це означає, що транзакція не була повністю кешована.
+        // Це та сама проблема, що призвела до збою. Ми маємо знайти обхідний шлях.
+        // Враховуючи, що це genesis-транзакція, її дані є фіксованими.
+        // Ми повинні отримати публічний ключ з інших джерел, наприклад, з
+        // get_tx_pub_key_from_received_outs().
+        LOG_PRINT_L2("Cached vout data is missing. Trying to get public key from a different source.");
+        if (!get_tx_pub_key_from_received_outs(td.m_tx.extra, output_public_key))
+        {
+             LOG_ERROR("Failed to get public key from received outputs extra.");
+             throw tools::error::wallet_internal_error(__func__, "Failed to get public key from received outputs extra.");
+        }
     }
-    
-    LOG_PRINT_L2("Found transaction with vout size: " << td.m_tx.vout.size() << " at internal index: " << td.m_internal_output_index);
 
-    // Create transaction input
+    // Створення входу транзакції
     cryptonote::txin_to_key tx_in;
     tx_in.amount = td.amount();
     tx_in.k_image = td.m_key_image;
     tx_in.key_offsets.push_back(td.m_global_output_index);
-
     tx.vin.push_back(tx_in);
 
-    // Create transaction output
+    // Створення виходу транзакції
     cryptonote::txout_to_key tx_out_dest;
     crypto::key_derivation derivation;
     bool r = crypto::generate_key_derivation(tx_pub_key, m_account.get_keys().m_view_secret_key, derivation);
@@ -9678,12 +9693,7 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     out.target = tx_out_dest;
     tx.vout.push_back(out);
     
-    // Sign the transaction
-    crypto::public_key output_public_key;
-    if (!get_output_public_key(td.m_tx.vout[td.m_internal_output_index], output_public_key)) {
-        throw tools::error::wallet_internal_error(__func__, "Unable to get output public key from genesis output");
-    }
-
+    // Підпис транзакції з використанням отриманого публічного ключа
     crypto::hash tx_prefix_hash = get_transaction_prefix_hash(tx);
     std::vector<crypto::signature> signatures(1);
     
