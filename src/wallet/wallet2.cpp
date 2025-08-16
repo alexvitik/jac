@@ -9641,29 +9641,23 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     
     LOG_PRINT_L2("Accessing transfer details from index: " << selected_transfers[0]);
 
-    // *******************************************************************
-    // ВИПРАВЛЕНО: Більше не використовуємо td.m_tx.vout напряму.
-    // Натомість, ми припускаємо, що публічний ключ виходу
-    // можна отримати іншим способом або він вже є в кеші.
-    // Це найімовірніша причина збою.
-    // Ми використовуємо td.m_tx.vout, лише якщо він не порожній,
-    // інакше шукаємо альтернативу.
-    // *******************************************************************
     crypto::public_key output_public_key;
+    
+    // Перевіряємо, чи є доступні vout дані.
     if (td.m_tx.vout.size() > td.m_internal_output_index) {
-        // Якщо дані vout доступні, використовуємо їх.
         LOG_PRINT_L2("Found cached vout data. Using it.");
         if (!get_output_public_key(td.m_tx.vout[td.m_internal_output_index], output_public_key)) {
             throw tools::error::wallet_internal_error(__func__, "Unable to get output public key from genesis output");
         }
     } else {
-        // Якщо vout порожній, це означає, що транзакція не була повністю кешована.
-        // Це та сама проблема, що призвела до збою. Ми маємо знайти обхідний шлях.
-        // Враховуючи, що це genesis-транзакція, її дані є фіксованими.
-        // Ми повинні отримати публічний ключ з інших джерел, наприклад, з
-        // get_tx_pub_key_from_received_outs().
-        LOG_PRINT_L2("Cached vout data is missing. Trying to get public key from a different source.");
-        if (!get_tx_pub_key_from_received_outs(td.m_tx.extra, output_public_key))
+        // Якщо vout порожній, використовуємо get_tx_pub_key_from_received_outs.
+        LOG_PRINT_L2("Cached vout data is missing. Trying to get public key from get_tx_pub_key_from_received_outs.");
+        
+        // **ВИПРАВЛЕНО:** Викликаємо функцію, передаючи правильний аргумент 'td'.
+        output_public_key = get_tx_pub_key_from_received_outs(td);
+        
+        // Перевіряємо, чи повернувся валідний ключ.
+        if (output_public_key == crypto::null_pub_key)
         {
              LOG_ERROR("Failed to get public key from received outputs extra.");
              throw tools::error::wallet_internal_error(__func__, "Failed to get public key from received outputs extra.");
