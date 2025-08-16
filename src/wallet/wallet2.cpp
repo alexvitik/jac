@@ -9658,7 +9658,7 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
       real_oe.second.mask = rct::commit(td.amount(), rct::identity());
       src.outputs.push_back(real_oe);
 
-      src.real_out_tx_key = cryptonote::get_tx_pub_key_from_extra(td.m_tx, td.m_pk_index);
+      src.real_out_tx_key = cryptonote::null_pkey; 
       src.real_out_additional_tx_keys = cryptonote::get_additional_tx_pub_keys_from_extra(td.m_tx);
       src.key_image = td.m_key_image; 
       src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
