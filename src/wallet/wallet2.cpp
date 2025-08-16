@@ -9641,28 +9641,28 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
 
     std::vector<cryptonote::tx_source_entry> sources;
     for(size_t idx: selected_transfers)
-    {
-      sources.resize(sources.size()+1);
-      cryptonote::tx_source_entry& src = sources.back();
-      const transfer_details& td = m_transfers[idx];
-      
-      src.amount = td.amount();
-      src.rct = false;
-      src.real_out_tx_key = cryptonote::null_pkey;
-      src.mask = td.m_mask;
-      src.real_output = 0; 
-      
-      tx_output_entry real_oe;
-	  real_oe.first = td.m_global_output_index;
-	  real_oe.second.dest = rct::pk2rct(td.m_public_key); // Use the real public key from transfer details
-	  real_oe.second.mask = rct::identity();
-	  src.outputs.push_back(real_oe);
+	{
+  		sources.resize(sources.size()+1);
+  		cryptonote::tx_source_entry& src = sources.back();
+  		const transfer_details& td = m_transfers[idx];
 
-      src.real_out_tx_key = cryptonote::null_pkey; 
-      src.real_out_additional_tx_keys = cryptonote::get_additional_tx_pub_keys_from_extra(td.m_tx);
-      src.key_image = td.m_key_image; 
-      src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
-    }
+  		src.amount = td.amount();
+  		src.rct = false; // Виправлено: явно вказуємо, що це не RingCT
+  		src.real_output_in_tx_index = td.m_internal_output_index;
+  		src.mask = rct::identity(); // Заповнюємо, щоб уникнути помилок
+  		src.real_output = td.m_output_index;
+
+  		tx_output_entry real_oe;
+  		real_oe.first = td.m_global_output_index;
+  		real_oe.second.dest = rct::pk2rct(td.get_public_key()); // Виправлено: використано функцію get_public_key()
+  		real_oe.second.mask = rct::identity();
+  		src.outputs.push_back(real_oe);
+
+  		src.real_out_tx_key = crypto::null_pkey; // Виправлено: використано правильний неймспейс
+  		src.real_out_additional_tx_keys = {}; // Встановлюємо на порожній список
+  		src.key_image = td.m_key_image;
+  		src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
+	}
 
     cryptonote::transaction tx;
     crypto::secret_key tx_key;
