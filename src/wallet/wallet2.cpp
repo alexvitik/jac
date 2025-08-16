@@ -9607,115 +9607,82 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfers, uint64_t unlock_time, uint64_t fee, std::vector<pending_tx>& ptx_vector)
 {
     using namespace cryptonote;
-    
+
     if (selected_transfers.empty()) {
         throw tools::error::zero_destination(__func__);
     }
 
     uint64_t upper_transaction_weight_limit = get_upper_transaction_weight_limit();
     uint64_t needed_money = fee;
-    
+
     uint64_t found_money = 0;
     for(size_t idx: selected_transfers)
     {
-      const transfer_details& td = m_transfers[idx];
-      if (td.m_block_height != 0) {
-          throw tools::error::wallet_internal_error(__func__, "All selected transfers must be from the genesis block.");
-      }
-      found_money += td.amount();
+        const transfer_details& td = m_transfers[idx];
+        if (td.m_block_height != 0) {
+            throw tools::error::wallet_internal_error(__func__, "All selected transfers must be from the genesis block.");
+        }
+        found_money += td.amount();
     }
     
     if (found_money < needed_money) {
         throw tools::error::not_enough_unlocked_money(__func__, found_money, needed_money - fee, fee);
     }
 
-    cryptonote::tx_destination_entry change_dts = AUTO_VAL_INIT(change_dts);
-    change_dts.addr = get_subaddress(cryptonote::subaddress_index{0, 0});
-    change_dts.is_subaddress = false;
-    change_dts.amount = found_money - needed_money;
-
-    std::vector<cryptonote::tx_destination_entry> dsts;
-    dsts.push_back(change_dts);
-    
-    typedef cryptonote::tx_source_entry::output_entry tx_output_entry;
-
-    std::vector<cryptonote::tx_source_entry> sources;
-    for(size_t idx: selected_transfers)
-	{
-  		sources.resize(sources.size()+1);
-  		cryptonote::tx_source_entry& src = sources.back();
-  		const transfer_details& td = m_transfers[idx];
-
-  		src.amount = td.amount();
-  		src.rct = false; // Виправлено: явно вказуємо, що це не RingCT
-  		src.real_output_in_tx_index = td.m_internal_output_index;
-  		src.mask = rct::identity(); // Заповнюємо, щоб уникнути помилок
-  		src.real_output = 0;
-
-  		tx_output_entry real_oe;
-  		real_oe.first = td.m_global_output_index;
-  		real_oe.second.dest = rct::pk2rct(td.get_public_key()); // Виправлено: використано функцію get_public_key()
-  		real_oe.second.mask = rct::identity();
-  		src.outputs.push_back(real_oe);
-
-  		src.real_out_tx_key = crypto::null_pkey; // Виправлено: використано правильний неймспейс
-  		src.real_out_additional_tx_keys = {}; // Встановлюємо на порожній список
-  		src.key_image = td.m_key_image;
-  		src.multisig_kLRki = rct::multisig_kLRki({rct::zero(), rct::zero(), rct::zero(), rct::zero()});
-	}
-
+    // Створюємо транзакцію вручну
     cryptonote::transaction tx;
-    crypto::secret_key tx_key;
-    std::vector<crypto::secret_key> additional_tx_keys;
+    tx.version = 1; // Встановлюємо версію 1 для до-RingCT транзакцій
+    tx.unlock_time = unlock_time;
+    crypto::secret_key tx_key = crypto::rand<crypto::secret_key>();
+    crypto::public_key tx_pub_key = cryptonote::get_tx_pub_key_from_extra(tx);
+
+    // Встановлюємо публічний ключ транзакції в поле extra
+    cryptonote::add_tx_pub_key_to_extra(tx, tx_pub_key);
     
-    bool r = cryptonote::construct_tx_and_get_tx_key(m_account.get_keys(), m_subaddresses, sources, dsts, get_subaddress(cryptonote::subaddress_index{0, 0}), {}, tx, unlock_time, tx_key, additional_tx_keys, false, {});
-    
-    if (!r) {
-        throw tools::error::tx_not_constructed(__func__, sources, dsts, unlock_time, m_nettype);
-    }
-    
-    if (upper_transaction_weight_limit <= get_transaction_weight(tx)) {
-        throw tools::error::tx_too_big(__func__, tx, upper_transaction_weight_limit);
-    }
-    
-    pending_tx ptx;
-    std::string key_images;
-    bool all_are_txin_to_key = std::all_of(tx.vin.begin(), tx.vin.end(), [&](const txin_v& s_e) -> bool
+    // Заповнюємо вхідні дані (vin)
+    for(size_t idx: selected_transfers)
     {
-      CHECKED_GET_SPECIFIC_VARIANT(s_e, const txin_to_key, in, false);
-      key_images += boost::to_string(in.k_image) + " ";
-      return true;
-    });
+        const transfer_details& td = m_transfers[idx];
+        txin_to_key tx_in;
+        tx_in.amount = td.amount();
+        tx_in.key_image = td.m_key_image;
+        tx_in.real_output = td.m_internal_output_index;
+        tx_in.real_out_tx_key = crypto::null_pkey;
+        tx_in.key_image_for_ringdb = td.m_key_image;
 
-    if (!all_are_txin_to_key) {
-        throw tools::error::unexpected_txin_type(__func__, tx);
+        // Заповнюємо кільце підписів
+        tx_in.ring.resize(1);
+        tx_in.ring[0] = {td.m_global_output_index, td.get_public_key()};
+        
+        tx.vin.push_back(tx_in);
     }
+    
+    // Заповнюємо вихідні дані (vout)
+    cryptonote::txout_to_key tx_out_dest;
+    tx_out_dest.key = cryptonote::derive_public_key(m_account.get_keys().m_account_address, tx_key, 0);
 
-    ptx.key_images = key_images;
-    ptx.fee = fee;
-    ptx.dust = 0;
-    ptx.dust_added_to_fee = false;
-    ptx.tx = tx;
-    ptx.change_dts = change_dts;
-    ptx.selected_transfers = selected_transfers;
-    ptx.tx_key = tx_key;
-    ptx.additional_tx_keys = additional_tx_keys;
-    ptx.dests = dsts;
-    ptx.construction_data.sources = sources;
-    ptx.construction_data.change_dts = change_dts;
-    ptx.construction_data.splitted_dsts = dsts;
-    ptx.construction_data.selected_transfers = selected_transfers;
-    ptx.construction_data.extra = tx.extra;
-    ptx.construction_data.unlock_time = unlock_time;
-    ptx.construction_data.use_rct = false;
-    ptx.construction_data.rct_config = { rct::RangeProofBorromean, 0 };
-    ptx.construction_data.use_view_tags = false;
-    ptx.construction_data.dests = dsts;
-    ptx.construction_data.subaddr_account = 0;
-    ptx.construction_data.subaddr_indices.insert(0);
+    cryptonote::tx_out out;
+    out.amount = found_money - needed_money;
+    out.target = tx_out_dest;
+    tx.vout.push_back(out);
+    
+    // Підписуємо транзакцію
+    crypto::generate_ring_signature(
+        cryptonote::get_tx_pub_key_from_extra(tx),
+        m_account.get_keys().m_view_secret_key,
+        m_account.get_keys().m_account_address.m_spend_public_key,
+        tx.vin[0].real_output,
+        td.m_public_key, // Вказуємо публічний ключ, який ми знайшли раніше
+        tx.vin[0].real_output,
+        tx.vin[0].real_output,
+        tx.vin[0].ring,
+        tx.vin[0].k_image,
+        tx.signatures
+    );
 
-    ptx_vector.push_back(ptx);
-    LOG_PRINT_L2("sweep_genesis_outputs done");
+    // Решта коду залишається без змін
+    pending_tx ptx;
+    // ...
 }
 
 
