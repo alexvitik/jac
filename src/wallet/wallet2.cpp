@@ -9663,10 +9663,14 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     //--------------------------------------------------------------------------
     // Виправлений підпис
     //--------------------------------------------------------------------------
-    crypto::public_key output_public_key = td.get_public_key();
+    crypto::public_key output_public_key;
+    if (!get_output_public_key(td.m_tx.vout[0], output_public_key)) {
+        throw tools::error::wallet_internal_error(__func__, "Unable to get output public key from genesis output");
+    }
+
     crypto::hash tx_prefix_hash = get_transaction_prefix_hash(tx);
     std::vector<crypto::signature> signatures(1);
-
+    
     const crypto::public_key* pubs[1];
     pubs[0] = &output_public_key;
 
