@@ -9643,6 +9643,8 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     cryptonote::txin_to_key tx_in;
     tx_in.amount = td.amount();
     tx_in.k_image = td.m_key_image;
+    tx_in.key_offsets.push_back(0); // Офсет 0, оскільки це єдиний елемент в кільці
+
     tx.vin.push_back(tx_in);
 
     // Заповнення вихідних даних (vout)
@@ -9669,7 +9671,7 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     get_output_public_key(td.m_tx.vout[td.m_internal_output_index], output_public_key);
 
     crypto::generate_ring_signature(
-        tx.get_tx_pub_key_from_extra(),
+        cryptonote::get_tx_pub_key_from_extra(tx),
         m_account.get_keys().m_view_secret_key,
         m_account.get_keys().m_account_address.m_spend_public_key,
         td.m_internal_output_index,
@@ -9683,7 +9685,6 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     pending_tx ptx;
     // ...
 }
-
 
 void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry> dsts, const std::vector<size_t>& selected_transfers, size_t fake_outputs_count,
   std::vector<std::vector<tools::wallet2::get_outs_entry>> &outs, std::unordered_set<crypto::public_key> &valid_public_keys_cache,
