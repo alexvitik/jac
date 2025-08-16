@@ -9604,131 +9604,204 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
   LOG_PRINT_L2("transfer_selected done");
 }
 //-----------------------------------------------
-void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfers, uint64_t unlock_time, uint64_t fee)
+void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfers, uint64_t unlock_time, uint64_t fee, std::vector<pending_tx>& ptx_vector)
+
 {
+
     LOG_PRINT_L2("Entered sweep_genesis_outputs function. Re-generating genesis public key from wallet data.");
+
     using namespace cryptonote;
 
+
     if (selected_transfers.empty()) {
+
         throw tools::error::zero_destination(__func__);
+
     }
+
 
     uint64_t found_money = 0;
+
     for(size_t idx: selected_transfers)
+
     {
+
         const transfer_details& td = m_transfers[idx];
+
         if (td.m_block_height != 0) {
+
             throw tools::error::wallet_internal_error(__func__, "All selected transfers must be from the genesis block.");
+
         }
+
         found_money += td.amount();
-    }
-    
-    if (found_money < fee) {
-        throw tools::error::not_enough_unlocked_money(__func__, found_money, 0, fee);
+
     }
 
-    cryptonote::transaction tx_new;
-    tx_new.version = 1;
-    tx_new.unlock_time = unlock_time;
     
+
+    if (found_money < fee) {
+
+        throw tools::error::not_enough_unlocked_money(__func__, found_money, 0, fee);
+
+    }
+
+
+    cryptonote::transaction tx_new;
+
+    tx_new.version = 1;
+
+    tx_new.unlock_time = unlock_time;
+
+    
+
     crypto::public_key tx_pub_key;
+
     crypto::secret_key tx_key;
+
     crypto::generate_keys(tx_pub_key, tx_key);
+
 
     add_tx_pub_key_to_extra(tx_new, tx_pub_key);
 
+
     const transfer_details& td = m_transfers[selected_transfers[0]];
+
     
+
     LOG_PRINT_L2("Accessing transfer details from index: " << selected_transfers[0]);
 
+
+    // *******************************************************************
+
+    // ВИПРАВЛЕНО: Використання перевіреної логіки з process_genesis_block_reward.
+
+    // Отримуємо ключ за допомогою get_tx_pub_key_from_extra.
+
+    // *******************************************************************
+
     crypto::public_key output_public_key;
+
     crypto::key_derivation derivation;
+
     
+
+    // Використовуємо функцію, яка успішно працює для обробки генезису
+
     crypto::public_key tx_pub_key_from_extra = cryptonote::get_tx_pub_key_from_extra(td.m_tx);
 
+
     if (!crypto::generate_key_derivation(tx_pub_key_from_extra, m_account.get_keys().m_view_secret_key, derivation)) {
+
         throw tools::error::wallet_internal_error(__func__, "Failed to generate key derivation.");
+
     }
+
 
     if (!crypto::derive_public_key(derivation, td.m_internal_output_index, m_account.get_keys().m_account_address.m_spend_public_key, output_public_key)) {
+
         throw tools::error::wallet_internal_error(__func__, "Failed to derive output public key.");
+
     }
+
+
+    // Створення входу транзакції
 
     cryptonote::txin_to_key tx_in;
+
     tx_in.amount = td.m_amount;
+
     tx_in.k_image = td.m_key_image;
+
     tx_in.key_offsets.push_back(td.m_global_output_index);
+
     tx_new.vin.push_back(tx_in);
 
+
+    // Створення виходу транзакції
+
     cryptonote::txout_to_key tx_out_dest;
+
     crypto::key_derivation new_derivation;
+
     if (!crypto::generate_key_derivation(tx_pub_key, m_account.get_keys().m_view_secret_key, new_derivation)) {
+
         throw tools::error::wallet_internal_error(__func__, "Failed to derive new key derivation");
+
     }
+
     
+
     crypto::public_key derived_key;
+
     if (!crypto::derive_public_key(new_derivation, 0, m_account.get_keys().m_account_address.m_spend_public_key, derived_key)) {
+
         throw tools::error::wallet_internal_error(__func__, "Failed to derive new public key");
+
     }
+
     tx_out_dest.key = derived_key;
+
     
+
     cryptonote::tx_out out;
+
     out.amount = found_money - fee;
+
     out.target = tx_out_dest;
+
     tx_new.vout.push_back(out);
+
     
+
+    // Підпис транзакції
+
     crypto::hash tx_prefix_hash = get_transaction_prefix_hash(tx_new);
+
     std::vector<crypto::signature> signatures(1);
+
     
+
     const crypto::public_key* pubs[1];
+
     pubs[0] = &output_public_key;
 
+
     crypto::generate_ring_signature(
+
         tx_prefix_hash,
+
         td.m_key_image,
+
         pubs,
+
         1,
+
         m_account.get_keys().m_spend_secret_key,
+
         0,
+
         &signatures[0]
+
     );
 
+
     tx_new.signatures.push_back(signatures);
 
-    LOG_PRINT_L2("Transaction created. Attempting to send to daemon...");
-    
-    // Відправляємо транзакцію в мережу через демон
-    if (!m_daemon_rpc_proxy.send_raw_tx(epee::string_tools::pod_to_hex(tx_new))) {
-        LOG_PRINT_L2("Failed to send transaction to daemon.");
-        throw tools::error::wallet_internal_error(__func__, "Failed to send transaction to daemon.");
-    }
-    
-    LOG_PRINT_L2("Transaction successfully sent to daemon. Adding to pending transactions list.");
-    
-    pending_tx ptx{};
-    ptx.tx = tx_new;
-    ptx.dust_added_to_fee = 0;
-    ptx.fee = fee;
-    ptx.selected_transfers.assign(selected_transfers.begin(), selected_transfers.end());
-    
-    // Тут ми додаємо транзакцію до ptx_vector, щоб вона була доступна для подальшої обробки
-    // та збереження в гаманці.
-    // Це забезпечить, що ви зможете побачити її у show_transfers.
-    std::vector<pending_tx> ptx_vector;
-    ptx_vector.push_back(ptx);
-    m_pending_txs.push_back(ptx_vector);
-    
-    LOG_PRINT_L2("Transaction was successfully created, sent and saved.");
-}
-    tx_new.signatures.push_back(signatures);
 
     pending_tx ptx{};
+
     ptx.tx = tx_new;
+
     ptx.dust_added_to_fee = 0;
+
     ptx.fee = fee;
+
     ptx.selected_transfers.assign(selected_transfers.begin(), selected_transfers.end());
+
     ptx_vector.push_back(ptx);
-}
+
+} 
 void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry> dsts, const std::vector<size_t>& selected_transfers, size_t fake_outputs_count,
   std::vector<std::vector<tools::wallet2::get_outs_entry>> &outs, std::unordered_set<crypto::public_key> &valid_public_keys_cache,
   uint64_t unlock_time, uint64_t fee, const std::vector<uint8_t>& extra, cryptonote::transaction& tx, pending_tx &ptx, const rct::RCTConfig &rct_config, bool use_view_tags)
