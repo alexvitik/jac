@@ -59,6 +59,52 @@ public:
     void signMultisigTx() override;
     std::vector<std::string> signersKeys() const override;
 
+    //------------------------
+    // The convention for destinations is:
+    // dests does not include change
+    // splitted_dsts (in construction_data) does
+    struct pending_tx
+    {
+      cryptonote::transaction tx;
+      uint64_t dust, fee;
+      bool dust_added_to_fee;
+      cryptonote::tx_destination_entry change_dts;
+      std::vector<size_t> selected_transfers;
+      std::string key_images;
+      crypto::secret_key tx_key;
+      std::vector<crypto::secret_key> additional_tx_keys;
+      std::vector<cryptonote::tx_destination_entry> dests;
+      std::vector<multisig_sig> multisig_sigs;
+      crypto::secret_key multisig_tx_key_entropy;
+
+      tx_construction_data construction_data;
+
+      BEGIN_SERIALIZE_OBJECT()
+        VERSION_FIELD(1)
+        FIELD(tx)
+        FIELD(dust)
+        FIELD(fee)
+        FIELD(dust_added_to_fee)
+        FIELD(change_dts)
+        FIELD(selected_transfers)
+        FIELD(key_images)
+        FIELD(tx_key)
+        FIELD(additional_tx_keys)
+        FIELD(dests)
+        FIELD(construction_data)
+        FIELD(multisig_sigs)
+        if (version < 1)
+        {
+          multisig_tx_key_entropy = crypto::null_skey;
+          return true;
+        }
+        FIELD(multisig_tx_key_entropy)
+      END_SERIALIZE()
+    };
+
+    std::vector<tools::wallet2::pending_tx> m_pending_tx;
+    //---------------------------
+
 private:
     friend class WalletImpl;
     WalletImpl &m_wallet;
