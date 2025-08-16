@@ -9608,11 +9608,13 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
 {
     using namespace cryptonote;
 
+    // Перевіряємо, чи передано хоча б один transfer
     if (selected_transfers.empty()) {
         throw tools::error::zero_destination(__func__);
     }
 
     uint64_t found_money = 0;
+    // Обчислюємо загальну суму
     for(size_t idx: selected_transfers)
     {
         const transfer_details& td = m_transfers[idx];
@@ -9626,10 +9628,12 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
         throw tools::error::not_enough_unlocked_money(__func__, found_money, 0, fee);
     }
 
+    // Створення нової транзакції
     cryptonote::transaction tx;
     tx.version = 1;
     tx.unlock_time = unlock_time;
     
+    // Генеруємо ключі для нової транзакції
     crypto::public_key tx_pub_key;
     crypto::secret_key tx_key;
     crypto::generate_keys(tx_pub_key, tx_key);
@@ -9638,6 +9642,7 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
 
     const transfer_details& td = m_transfers[selected_transfers[0]];
     
+    // Створення входу транзакції
     cryptonote::txin_to_key tx_in;
     tx_in.amount = td.amount();
     tx_in.k_image = td.m_key_image;
@@ -9645,6 +9650,7 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
 
     tx.vin.push_back(tx_in);
 
+    // Створення виходу транзакції
     cryptonote::txout_to_key tx_out_dest;
     crypto::key_derivation derivation;
     bool r = crypto::generate_key_derivation(tx_pub_key, m_account.get_keys().m_view_secret_key, derivation);
@@ -9660,11 +9666,10 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     out.target = tx_out_dest;
     tx.vout.push_back(out);
     
-    //--------------------------------------------------------------------------
-    // Виправлений підпис
-    //--------------------------------------------------------------------------
+    // Підпис транзакції
     crypto::public_key output_public_key;
-    if (!get_output_public_key(td.m_tx.vout[0], output_public_key)) {
+    // Використовуємо функцію, яка була в оригінальному коді, щоб отримати публічний ключ
+    if (!get_output_public_key(td.m_tx.vout[td.m_internal_output_index], output_public_key)) {
         throw tools::error::wallet_internal_error(__func__, "Unable to get output public key from genesis output");
     }
 
