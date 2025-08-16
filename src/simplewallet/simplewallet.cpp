@@ -5448,7 +5448,7 @@ void simple_wallet::check_background_mining(const epee::wipeable_string &passwor
   }
 }
 //----------------------------------------------------------------------------------
-bool simple_wallet::handle_sweep_genesis_command(const std::vector<std::string>& args)
+bool simple_wallet::sweep_genesis(const std::vector<std::string>& args)
 {
     TRY_ENTRY();
     THROW_WALLET_EXCEPTION_IF(args.size() != 2, tools::error::wallet_internal_error, "usage: sweep_genesis <fee> <unlock_time>");
@@ -5496,7 +5496,7 @@ bool simple_wallet::handle_sweep_genesis_command(const std::vector<std::string>&
     // Notify the user about the created transaction
     success_msg_writer() << "Transaction to sweep genesis outputs was successfully created and is pending.";
     return true;
-    CATCH_ENTRY("handle_sweep_genesis_command", false);
+    CATCH_ENTRY("sweep_genesis", false);
 }
 
 
