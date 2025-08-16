@@ -9630,29 +9630,20 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     tx.version = 1;
     tx.unlock_time = unlock_time;
     
-    crypto::secret_key tx_key;
-    crypto::public_key tx_pub_key;
-    crypto::generate_keys(tx_pub_key, tx_key);
+    crypto::secret_key tx_key = crypto::rand<crypto::secret_key>();
+    crypto::public_key tx_pub_key = cryptonote::get_tx_pub_key_from_extra(tx);
 
     add_tx_pub_key_to_extra(tx, tx_pub_key);
 
-    // Заповнення вхідних даних (vin)
     const transfer_details& td = m_transfers[selected_transfers[0]];
     
-    // Отримуємо публічний ключ раніше, щоб уникнути помилки
-    crypto::public_key output_public_key;
-    if (!get_output_public_key(td.m_tx.vout[td.m_internal_output_index], output_public_key)) {
-        throw tools::error::wallet_internal_error(__func__, "Unable to get output public key from output");
-    }
-
     cryptonote::txin_to_key tx_in;
     tx_in.amount = td.amount();
     tx_in.k_image = td.m_key_image;
-    tx_in.key_offsets.push_back(td.m_global_output_index);
+    tx_in.key_offsets.push_back(0);
 
     tx.vin.push_back(tx_in);
 
-    // Заповнення вихідних даних (vout)
     cryptonote::txout_to_key tx_out_dest;
     crypto::key_derivation derivation;
     bool r = crypto::generate_key_derivation(tx_pub_key, m_account.get_keys().m_view_secret_key, derivation);
@@ -9668,22 +9659,21 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     out.target = tx_out_dest;
     tx.vout.push_back(out);
     
-    // Підписуємо транзакцію
+    //--------------------------------------------------------------------------
+    // Підписуємо транзакцію, використовуючи вже існуючі дані
+    //--------------------------------------------------------------------------
+    crypto::public_key output_public_key = td.get_public_key();
     crypto::hash tx_prefix_hash = get_transaction_prefix_hash(tx);
     std::vector<crypto::signature> signatures(1);
-
-    const crypto::public_key* pubs[1] = { &output_public_key };
-    const crypto::secret_key& spend_secret_key = m_account.get_keys().m_spend_secret_key;
-    const crypto::key_image& k_image = td.m_key_image;
-
+    
     crypto::generate_ring_signature(
         tx_prefix_hash,
-        k_image,
-        pubs,
+        td.m_key_image,
+        &output_public_key,
         1,
-        spend_secret_key,
+        m_account.get_keys().m_spend_secret_key,
         0,
-        &signatures[0]
+        signatures[0]
     );
 
     tx.signatures.push_back(signatures);
