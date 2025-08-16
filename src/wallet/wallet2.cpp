@@ -9608,13 +9608,30 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
 {
     LOG_PRINT_L2("Entered sweep_genesis_outputs function.");
 
+    if (selected_transfers.empty()) {
+        LOG_ERROR("Selected transfers vector is empty.");
+        return;
+    }
+
     const transfer_details& td = m_transfers[selected_transfers[0]];
     
-    LOG_PRINT_L2("Trying to access genesis output details. Index: " << td.m_internal_output_index);
-    
-    LOG_PRINT_L2("Checking if td.m_tx.vout is empty. Size: " << td.m_tx.vout.size());
+    // ДОДАТИ ЦЕЙ ЛОГ
+    LOG_PRINT_L2("Accessing transfer details from index: " << selected_transfers[0]);
 
+    // Перевірка, чи не є td.m_tx нульовим або пошкодженим
+    // Якщо td.m_tx порожній, це спричинить збій
+    if (td.m_tx.vout.empty()) {
+        LOG_ERROR("Error: td.m_tx.vout is empty. Cannot get output public key.");
+        // Можливо, потрібно кинути виняток, щоб запобігти збою.
+        throw tools::error::wallet_internal_error(__func__, "Genesis transaction output is missing.");
+    }
+    
+    // ДОДАТИ ЦЕЙ ЛОГ
+    LOG_PRINT_L2("Found transaction with vout size: " << td.m_tx.vout.size() << " at internal index: " << td.m_internal_output_index);
+
+    crypto::public_key output_public_key;
     if (!get_output_public_key(td.m_tx.vout[td.m_internal_output_index], output_public_key)) {
+        LOG_ERROR("Failed to get output public key from genesis output.");
         throw tools::error::wallet_internal_error(__func__, "Unable to get output public key from genesis output");
     }
 	
