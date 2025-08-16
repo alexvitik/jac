@@ -9606,7 +9606,19 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 //-----------------------------------------------
 void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfers, uint64_t unlock_time, uint64_t fee, std::vector<pending_tx>& ptx_vector)
 {
-    using namespace cryptonote;
+    LOG_PRINT_L2("Entered sweep_genesis_outputs function.");
+
+    const transfer_details& td = m_transfers[selected_transfers[0]];
+    
+    LOG_PRINT_L2("Trying to access genesis output details. Index: " << td.m_internal_output_index);
+    
+    LOG_PRINT_L2("Checking if td.m_tx.vout is empty. Size: " << td.m_tx.vout.size());
+
+    if (!get_output_public_key(td.m_tx.vout[td.m_internal_output_index], output_public_key)) {
+        throw tools::error::wallet_internal_error(__func__, "Unable to get output public key from genesis output");
+    }
+	
+	using namespace cryptonote;
 
     // Перевіряємо, чи передано хоча б один transfer
     if (selected_transfers.empty()) {
