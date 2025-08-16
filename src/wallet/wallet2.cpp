@@ -9609,7 +9609,6 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     using namespace cryptonote;
 
     if (selected_transfers.empty()) {
-        LOG_ERROR("Selected transfers vector is empty.");
         throw tools::error::zero_destination(__func__);
     }
 
@@ -9618,16 +9617,12 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     {
         const transfer_details& td = m_transfers[idx];
         if (td.m_block_height != 0) {
-            LOG_ERROR("Found transfer not from genesis block. Block height: " << td.m_block_height);
             throw tools::error::wallet_internal_error(__func__, "All selected transfers must be from the genesis block.");
         }
         found_money += td.amount();
     }
     
-    LOG_PRINT_L2("Found money for sweep: " << found_money);
-
     if (found_money < fee) {
-        LOG_ERROR("Not enough funds to cover fee. Found: " << found_money << ", Fee: " << fee);
         throw tools::error::not_enough_unlocked_money(__func__, found_money, 0, fee);
     }
 
@@ -9635,7 +9630,6 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     tx.version = 1;
     tx.unlock_time = unlock_time;
     
-    // Генерація ключа транзакції
     crypto::secret_key tx_key;
     crypto::public_key tx_pub_key;
     crypto::generate_keys(tx_pub_key, tx_key);
@@ -9645,52 +9639,42 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     // Заповнення вхідних даних (vin)
     const transfer_details& td = m_transfers[selected_transfers[0]];
     
+    // Отримуємо публічний ключ раніше, щоб уникнути помилки
+    crypto::public_key output_public_key;
+    if (!get_output_public_key(td.m_tx.vout[td.m_internal_output_index], output_public_key)) {
+        throw tools::error::wallet_internal_error(__func__, "Unable to get output public key from output");
+    }
+
     cryptonote::txin_to_key tx_in;
     tx_in.amount = td.amount();
     tx_in.k_image = td.m_key_image;
-    tx_in.key_offsets.push_back(0);
+    tx_in.key_offsets.push_back(td.m_global_output_index);
 
     tx.vin.push_back(tx_in);
-    LOG_PRINT_L2("Added input to transaction. Input amount: " << tx_in.amount);
 
     // Заповнення вихідних даних (vout)
     cryptonote::txout_to_key tx_out_dest;
     crypto::key_derivation derivation;
     bool r = crypto::generate_key_derivation(tx_pub_key, m_account.get_keys().m_view_secret_key, derivation);
-    if (!r) {
-        LOG_ERROR("Failed to derive key derivation.");
-        throw tools::error::wallet_internal_error(__func__, "Failed to derive key derivation");
-    }
+    if (!r) throw tools::error::wallet_internal_error(__func__, "Failed to derive key derivation");
     
     crypto::public_key derived_key;
     r = crypto::derive_public_key(derivation, 0, m_account.get_keys().m_account_address.m_spend_public_key, derived_key);
-    if (!r) {
-        LOG_ERROR("Failed to derive public key.");
-        throw tools::error::wallet_internal_error(__func__, "Failed to derive public key");
-    }
+    if (!r) throw tools::error::wallet_internal_error(__func__, "Failed to derive public key");
     tx_out_dest.key = derived_key;
     
     cryptonote::tx_out out;
     out.amount = found_money - fee;
     out.target = tx_out_dest;
-
-    if (out.amount > 0) {
-        tx.vout.push_back(out);
-        LOG_PRINT_L2("Added output to transaction. Output amount: " << out.amount);
-    } else {
-        LOG_ERROR("Output amount is zero or negative (" << out.amount << "), not adding to transaction.");
-    }
-
-    //---------------------------------------------------------
-    // Підписання транзакції
-    //---------------------------------------------------------
+    tx.vout.push_back(out);
     
+    // Підписуємо транзакцію
     crypto::hash tx_prefix_hash = get_transaction_prefix_hash(tx);
-    crypto::public_key output_public_key = td.get_public_key();
+    std::vector<crypto::signature> signatures(1);
+
     const crypto::public_key* pubs[1] = { &output_public_key };
     const crypto::secret_key& spend_secret_key = m_account.get_keys().m_spend_secret_key;
     const crypto::key_image& k_image = td.m_key_image;
-    std::vector<crypto::signature> signatures(1);
 
     crypto::generate_ring_signature(
         tx_prefix_hash,
@@ -9702,14 +9686,7 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
         &signatures[0]
     );
 
-    if (tx.vin.empty() || tx.vin.size() != signatures.size()) {
-        LOG_ERROR("Signature generation failed. tx.vin.size(): " << tx.vin.size() << ", signatures.size(): " << signatures.size());
-        throw tools::error::wallet_internal_error(__func__, "Signature generation failed");
-    }
-
     tx.signatures.push_back(signatures);
-
-    LOG_PRINT_L2("Transaction successfully signed and ready to be broadcast.");
 
     pending_tx ptx;
     // ...
