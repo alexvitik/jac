@@ -9657,11 +9657,11 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
         output_public_key = get_tx_pub_key_from_received_outs(td);
         
         // Перевіряємо, чи повернувся валідний ключ.
-        if (output_public_key == crypto::null_pub_key)
-        {
-             LOG_ERROR("Failed to get public key from received outputs extra.");
-             throw tools::error::wallet_internal_error(__func__, "Failed to get public key from received outputs extra.");
-        }
+        if (output_public_key == crypto::null_pkey)
+    	{
+         	LOG_ERROR("Failed to get public key from received outputs extra.");
+         	throw tools::error::wallet_internal_error(__func__, "Failed to get public key from received outputs extra.");
+    	}
     }
 
     // Створення входу транзакції
