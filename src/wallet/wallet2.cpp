@@ -9658,8 +9658,6 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     cryptonote::txin_to_key tx_in;
     tx_in.amount = td.m_amount;
     
-    // ВИПРАВЛЕНО: Правильна генерація ключового зображення для даної транзакції
-    // Ця функція є найбільш підходящою, вона не вимагає зайвих параметрів, що може спричинити помилку
     crypto::key_image generated_k_image;
     crypto::generate_key_image_helper(m_account.get_keys(), output_public_key, generated_k_image, td.m_internal_output_index);
     tx_in.k_image = generated_k_image;
@@ -9667,8 +9665,11 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     tx_in.key_offsets.push_back(td.m_global_output_index);
     tx_new.vin.push_back(tx_in);
 
-    // Створення виходу транзакції
-    cryptonote::txout_to_key tx_out_dest;
+    // *******************************************************************
+    // ВИПРАВЛЕНО: Використання txout_to_tagged_key замість txout_to_key
+    // Це відповідає вимогам демона щодо тегованих виходів
+    // *******************************************************************
+    cryptonote::txout_to_tagged_key tagged_key;
     crypto::key_derivation new_derivation;
     if (!crypto::generate_key_derivation(tx_pub_key, m_account.get_keys().m_view_secret_key, new_derivation)) {
         throw tools::error::wallet_internal_error(__func__, "Failed to derive new key derivation");
@@ -9678,11 +9679,12 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     if (!crypto::derive_public_key(new_derivation, 0, m_account.get_keys().m_account_address.m_spend_public_key, derived_key)) {
         throw tools::error::wallet_internal_error(__func__, "Failed to derive new public key");
     }
-    tx_out_dest.key = derived_key;
-    
+    tagged_key.key = derived_key;
+    tagged_key.subaddr_index = {0, 0}; // Встановлюємо індекс субадреси на 0
+
     cryptonote::tx_out out;
     out.amount = found_money - fee;
-    out.target = tx_out_dest;
+    out.target = tagged_key; // Призначаємо виправлений тип виходу
     tx_new.vout.push_back(out);
     
     // Підпис транзакції
