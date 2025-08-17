@@ -9683,8 +9683,8 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
 	tx_out_to_tagged_key.key = derived_key;
 	// Додаємо view_tag, який є обов'язковим для транзакції v2
 	crypto::hash hash;
-	crypto::cn_fast_hash(std::string_view(reinterpret_cast<const char*>(&tx_pub_key), sizeof(tx_pub_key)), hash);
-	tx_out_to_tagged_key.view_tag = reinterpret_cast<const unsigned char*>(&hash)[0];
+	crypto::cn_fast_hash(&tx_pub_key, sizeof(tx_pub_key), hash);
+	tx_out_to_tagged_key.view_tag = (crypto::view_tag)reinterpret_cast<const unsigned char*>(&hash)[0];
 
 	cryptonote::tx_out out;
 	out.amount = found_money - fee;
