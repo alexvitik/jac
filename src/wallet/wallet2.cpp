@@ -9663,7 +9663,8 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     crypto::generate_key_image(output_public_key, m_account.get_keys().m_spend_secret_key, generated_k_image);
     tx_in.k_image = generated_k_image;
     
-    tx_in.key_offsets.push_back(td.m_global_output_index);
+    // Виправлений рядок
+	tx_in.key_offsets.push_back(0);
     tx_new.vin.push_back(tx_in);
 
     // Створення виходу транзакції з view_tag
