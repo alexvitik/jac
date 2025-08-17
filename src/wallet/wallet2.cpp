@@ -9641,14 +9641,9 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     
     LOG_PRINT_L2("Accessing transfer details from index: " << selected_transfers[0]);
 
-    // *******************************************************************
-    // ВИПРАВЛЕНО: Використання перевіреної логіки з process_genesis_block_reward.
-    // Отримуємо ключ за допомогою get_tx_pub_key_from_extra.
-    // *******************************************************************
     crypto::public_key output_public_key;
     crypto::key_derivation derivation;
     
-    // Використовуємо функцію, яка успішно працює для обробки генезису
     crypto::public_key tx_pub_key_from_extra = cryptonote::get_tx_pub_key_from_extra(td.m_tx);
 
     if (!crypto::generate_key_derivation(tx_pub_key_from_extra, m_account.get_keys().m_view_secret_key, derivation)) {
@@ -9662,7 +9657,13 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     // Створення входу транзакції
     cryptonote::txin_to_key tx_in;
     tx_in.amount = td.m_amount;
-    tx_in.k_image = td.m_key_image;
+    
+    // ВИПРАВЛЕНО: Правильна генерація ключового зображення для даної транзакції
+    // Ця функція є найбільш підходящою, вона не вимагає зайвих параметрів, що може спричинити помилку
+    crypto::key_image generated_k_image;
+    crypto::generate_key_image_helper(m_account.get_keys(), output_public_key, generated_k_image, td.m_internal_output_index);
+    tx_in.k_image = generated_k_image;
+    
     tx_in.key_offsets.push_back(td.m_global_output_index);
     tx_new.vin.push_back(tx_in);
 
@@ -9693,7 +9694,7 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
 
     crypto::generate_ring_signature(
         tx_prefix_hash,
-        td.m_key_image,
+        tx_in.k_image,
         pubs,
         1,
         m_account.get_keys().m_spend_secret_key,
