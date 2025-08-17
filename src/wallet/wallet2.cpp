@@ -9700,6 +9700,9 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     const crypto::public_key* pubs[1];
     pubs[0] = &output_public_key;
 
+	crypto::hash tx_prefix_hash = get_transaction_prefix_hash(tx_new);
+	std::vector<crypto::signature> signatures(1);
+
     crypto::generate_signature(
     	tx_prefix_hash,
     	output_public_key,
