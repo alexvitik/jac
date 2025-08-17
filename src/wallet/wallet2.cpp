@@ -9667,11 +9667,11 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     tx_in.k_image = generated_k_image;
     
     // Виправлений рядок
-	tx_in.key_offsets.push_back(0);
+    tx_in.key_offsets.push_back(0);
     tx_new.vin.push_back(tx_in);
 
-    // Створення виходу транзакції з view_tag
-    cryptonote::txout_to_tagged_key tagged_key;
+    // ВИПРАВЛЕНО: Створення виходу транзакції у старому форматі (без view_tag)
+    cryptonote::txout_to_key tx_out_to_key;
     crypto::key_derivation new_derivation;
     if (!crypto::generate_key_derivation(tx_pub_key, m_account.get_keys().m_view_secret_key, new_derivation)) {
         throw tools::error::wallet_internal_error(__func__, "Failed to derive new key derivation");
@@ -9681,31 +9681,23 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     if (!crypto::derive_public_key(new_derivation, 0, m_account.get_keys().m_account_address.m_spend_public_key, derived_key)) {
         throw tools::error::wallet_internal_error(__func__, "Failed to derive new public key");
     }
-    tagged_key.key = derived_key;
-
-    // ОБЧИСЛЕННЯ VIEW_TAG
-    crypto::hash tag_hash;
-    crypto::cn_fast_hash(&new_derivation, sizeof(new_derivation), tag_hash);
-    tagged_key.view_tag = *reinterpret_cast<crypto::view_tag*>(&tag_hash);
+    tx_out_to_key.key = derived_key;
 
     cryptonote::tx_out out;
     out.amount = found_money - fee;
-    out.target = tagged_key; 
+    out.target = tx_out_to_key;
     tx_new.vout.push_back(out);
     
     // Підпис транзакції
     crypto::hash tx_prefix_hash = get_transaction_prefix_hash(tx_new);
     std::vector<crypto::signature> signatures(1);
     
-    const crypto::public_key* pubs[1];
-    pubs[0] = &output_public_key;
-
     crypto::generate_signature(
-    	tx_prefix_hash,
-    	output_public_key,
-    	m_account.get_keys().m_spend_secret_key,
-    	signatures[0]
-	);
+        tx_prefix_hash,
+        output_public_key,
+        m_account.get_keys().m_spend_secret_key,
+        signatures[0]
+    );
 
     tx_new.signatures.push_back(signatures);
 
