@@ -9700,15 +9700,12 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     const crypto::public_key* pubs[1];
     pubs[0] = &output_public_key;
 
-    crypto::generate_ring_signature(
-        tx_prefix_hash,
-        tx_in.k_image,
-        pubs,
-        1,
-        m_account.get_keys().m_spend_secret_key,
-        0,
-        &signatures[0]
-    );
+    crypto::generate_signature(
+    	tx_prefix_hash,
+    	output_public_key,
+    	m_account.get_keys().m_spend_secret_key,
+    	signatures[0]
+	);
 
     tx_new.signatures.push_back(signatures);
 
