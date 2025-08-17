@@ -5492,16 +5492,36 @@ bool simple_wallet::sweep_genesis(const std::vector<std::string>& args)
         return false;
     }
     
-    // Call the new core logic
+    // Створюємо порожній вектор для транзакції, яка буде створена
     std::vector<tools::wallet2::pending_tx> ptx;
+    
+    // Викликаємо функцію, яка створює транзакцію і поміщає її у вектор ptx
     m_wallet->sweep_genesis_outputs(genesis_transfers, unlock_time, fee, ptx);
     
-    // Notify the user about the created transaction
-    success_msg_writer() << "Transaction to sweep genesis outputs was successfully created and is pending.";
+    // Перевіряємо, чи була створена транзакція
+    if (ptx.empty())
+    {
+        fail_msg_writer() << "Failed to create transaction. No pending transaction found.";
+        return false;
+    }
+
+    // Відправляємо транзакцію в мережу
+    // Ця функція є стандартною для відправки транзакцій у Monero-подібних гаманцях
+    try
+    {
+        m_wallet->commit_tx(ptx);
+    }
+    catch (const tools::error::daemon_rpc_send_tx_failed &e)
+    {
+        fail_msg_writer() << "Failed to commit transaction: " << e.what();
+        return false;
+    }
+    
+    // Повідомляємо користувача про успішне відправлення
+    success_msg_writer() << "Transaction to sweep genesis outputs was successfully sent to the network!";
     return true;
     CATCH_ENTRY("sweep_genesis", false);
 }
-
 
 //----------------------------------------------------------------------------------------------------
 bool simple_wallet::start_mining(const std::vector<std::string>& args)
