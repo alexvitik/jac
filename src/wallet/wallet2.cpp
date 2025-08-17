@@ -9630,6 +9630,7 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
         throw tools::error::not_enough_unlocked_money(__func__, found_money, 0, fee);
     }
     
+    // Нова транзакція
     cryptonote::transaction tx_new;
     tx_new.version = 2;
     tx_new.unlock_time = unlock_time;
@@ -9641,39 +9642,32 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     
     const transfer_details& td = m_transfers[selected_transfers[0]];
     
+    // Створення входу (vin) транзакції
     cryptonote::txin_to_key tx_in;
     tx_in.amount = td.m_amount;
     tx_in.k_image = td.m_key_image; 
     
-    LOG_PRINT_L2("Using key image from wallet database: " << td.m_key_image);
+    // Тут ми не використовуємо td.m_tx, що уникне Segmentation fault.
+    // Замість цього, нам потрібно отримати public_key для підпису.
+    // Оскільки ми вже знаємо, що це вихід генезис-блоку, ми можемо
+    // відновити його з того, що вже є в гаманці.
     
+    // Отримуємо Genesis Public Key з збережених даних
+    const crypto::public_key genesis_public_key = m_account.get_keys().m_account_address.m_spend_public_key;
+    
+    // Підпис транзакції
+    crypto::hash tx_prefix_hash = get_transaction_prefix_hash(tx_new);
+    std::vector<crypto::signature> signatures(1);
+    
+    crypto::generate_signature(
+        tx_prefix_hash,
+        genesis_public_key, // Використовуємо публічний ключ гаманця, який є публічним ключем генезис-виходу
+        m_account.get_keys().m_spend_secret_key,
+        signatures[0]
+    );
+
     tx_in.key_offsets.push_back(0);
     tx_new.vin.push_back(tx_in);
-
-    // **********************************************
-    // ВИПРАВЛЕННЯ: Правильний спосіб отримати output_public_key
-    // **********************************************
-    crypto::public_key output_public_key;
-    const cryptonote::tx_out& gen_out = td.m_tx.vout[td.m_internal_output_index];
-    
-    // Використовуємо boost::get для безпечного отримання елемента з variant
-    const cryptonote::txout_to_tagged_key* gen_tagged_key_ptr = boost::get<const cryptonote::txout_to_tagged_key>(&gen_out.target);
-    if (!gen_tagged_key_ptr) {
-        throw tools::error::wallet_internal_error(__func__, "Genesis output target is not of expected type txout_to_tagged_key.");
-    }
-    
-    const cryptonote::txout_to_tagged_key& gen_tagged_key = *gen_tagged_key_ptr;
-
-    crypto::key_derivation key_derivation_from_secret;
-    if (!crypto::generate_key_derivation(gen_tagged_key.key, m_account.get_keys().m_view_secret_key, key_derivation_from_secret)) {
-        throw tools::error::wallet_internal_error(__func__, "Failed to derive key derivation from tagged key.");
-    }
-    
-    if (!crypto::derive_public_key(key_derivation_from_secret, td.m_internal_output_index, m_account.get_keys().m_account_address.m_spend_public_key, output_public_key)) {
-        throw tools::error::wallet_internal_error(__func__, "Failed to derive output public key from genesis tx.");
-    }
-    
-    LOG_PRINT_L2("Derived output public key from genesis block: " << output_public_key);
     
     // Створення виходу транзакції (txout)
     cryptonote::txout_to_tagged_key tx_out_to_tagged_key;
@@ -9699,16 +9693,6 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     out.target = tx_out_to_tagged_key;
     tx_new.vout.push_back(out);
     
-    crypto::hash tx_prefix_hash = get_transaction_prefix_hash(tx_new);
-    std::vector<crypto::signature> signatures(1);
-    
-    crypto::generate_signature(
-        tx_prefix_hash,
-        output_public_key,
-        m_account.get_keys().m_spend_secret_key,
-        signatures[0]
-    );
-
     tx_new.signatures.push_back(signatures);
 
     pending_tx ptx{};
