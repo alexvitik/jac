@@ -9609,7 +9609,7 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 //-----------------------------------------------
 void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfers, uint64_t unlock_time, uint64_t fee, std::vector<pending_tx>& ptx_vector)
 {
-    LOG_PRINT_L2("Entered sweep_genesis_outputs function. Processing genesis block reward.");
+    LOG_PRINT_L2("Entered sweep_genesis_outputs function. Re-generating genesis public key from wallet data.");
     using namespace cryptonote;
 
     if (selected_transfers.empty()) {
@@ -9671,6 +9671,8 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     
     // Логування згенерованого key_image для перевірки
     LOG_PRINT_L2("Generated key image for genesis output: " << generated_k_image);
+    // Логування key_image, який зберігається в базі гаманця
+    LOG_PRINT_L2("Wallet database key image: " << td.m_key_image);
 
     // Додаємо key_offsets. У даному випадку це 0, бо це єдиний вихід
     tx_in.key_offsets.push_back(0);
@@ -9689,10 +9691,15 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     }
     tx_out_to_tagged_key.key = derived_key;
     
-    // Правильний спосіб обчислення і присвоєння view_tag
+    // Додаємо view_tag
     crypto::hash hash;
     crypto::cn_fast_hash(&tx_pub_key, sizeof(tx_pub_key), hash);
-    tx_out_to_tagged_key.view_tag = hash.data[0];
+    tx_out_to_tagged_key.view_tag = *reinterpret_cast<const crypto::view_tag*>(reinterpret_cast<const unsigned char*>(&hash));
+
+    // Логування view_tag
+    LOG_PRINT_L2("Generated view tag: " << tools::pod_to_hex(tx_out_to_tagged_key.view_tag));
+    // Логування суми та комісії
+    LOG_PRINT_L2("Attempting to sweep amount: " << cryptonote::print_money(found_money - fee) << ", with fee: " << cryptonote::print_money(fee));
 
     cryptonote::tx_out out;
     out.amount = found_money - fee;
@@ -9719,7 +9726,6 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     ptx.selected_transfers.assign(selected_transfers.begin(), selected_transfers.end());
     ptx_vector.push_back(ptx);
 }
-
 
 void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry> dsts, const std::vector<size_t>& selected_transfers, size_t fake_outputs_count,
   std::vector<std::vector<tools::wallet2::get_outs_entry>> &outs, std::unordered_set<crypto::public_key> &valid_public_keys_cache,
