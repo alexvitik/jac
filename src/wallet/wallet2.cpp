@@ -9631,7 +9631,7 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     }
 
     cryptonote::transaction tx_new;
-    tx_new.version = 1;
+    tx_new.version = 2;
     tx_new.unlock_time = unlock_time;
     
     crypto::public_key tx_pub_key;
@@ -9670,23 +9670,24 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     tx_in.key_offsets.push_back(0);
     tx_new.vin.push_back(tx_in);
 
-    // ВИПРАВЛЕНО: Створення виходу транзакції у старому форматі (без view_tag)
-    cryptonote::txout_to_key tx_out_to_key;
-    crypto::key_derivation new_derivation;
-    if (!crypto::generate_key_derivation(tx_pub_key, m_account.get_keys().m_view_secret_key, new_derivation)) {
-        throw tools::error::wallet_internal_error(__func__, "Failed to derive new key derivation");
-    }
-    
-    crypto::public_key derived_key;
-    if (!crypto::derive_public_key(new_derivation, 0, m_account.get_keys().m_account_address.m_spend_public_key, derived_key)) {
-        throw tools::error::wallet_internal_error(__func__, "Failed to derive new public key");
-    }
-    tx_out_to_key.key = derived_key;
+    cryptonote::txout_to_tagged_key tx_out_to_tagged_key;
+	crypto::key_derivation new_derivation;
+	if (!crypto::generate_key_derivation(tx_pub_key, m_account.get_keys().m_view_secret_key, new_derivation)) {
+    	throw tools::error::wallet_internal_error(__func__, "Failed to derive new key derivation");
+	}
 
-    cryptonote::tx_out out;
-    out.amount = found_money - fee;
-    out.target = tx_out_to_key;
-    tx_new.vout.push_back(out);
+	crypto::public_key derived_key;
+	if (!crypto::derive_public_key(new_derivation, 0, m_account.get_keys().m_account_address.m_spend_public_key, derived_key)) {
+    	throw tools::error::wallet_internal_error(__func__, "Failed to derive new public key");
+	}
+	tx_out_to_tagged_key.key = derived_key;
+	// Додаємо view_tag, який є обов'язковим для транзакції v2
+	tx_out_to_tagged_key.view_tag = get_view_tag_from_pubkey(tx_pub_key);
+
+	cryptonote::tx_out out;
+	out.amount = found_money - fee;
+	out.target = tx_out_to_tagged_key;
+	tx_new.vout.push_back(out);
     
     // Підпис транзакції
     crypto::hash tx_prefix_hash = get_transaction_prefix_hash(tx_new);
