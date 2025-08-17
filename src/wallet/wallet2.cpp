@@ -9697,7 +9697,7 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     tx_out_to_tagged_key.view_tag = *reinterpret_cast<const crypto::view_tag*>(reinterpret_cast<const unsigned char*>(&hash));
 
     // Логування view_tag
-    LOG_PRINT_L2("Generated view tag: " << tools::pod_to_hex(tx_out_to_tagged_key.view_tag));
+    LOG_PRINT_L2("Generated view tag: " << epee::string_tools::pod_to_hex(tx_out_to_tagged_key.view_tag));
     // Логування суми та комісії
     LOG_PRINT_L2("Attempting to sweep amount: " << cryptonote::print_money(found_money - fee) << ", with fee: " << cryptonote::print_money(fee));
 
