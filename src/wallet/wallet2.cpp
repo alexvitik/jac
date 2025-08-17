@@ -7148,6 +7148,9 @@ void wallet2::commit_tx(pending_tx& ptx)
   {
     // Normal submit
     COMMAND_RPC_SEND_RAW_TX::request req;
+	//----------------------------------
+	LOG_PRINT_L0("DEBUG: Sending transaction to daemon. Raw hex: " << epee::string_tools::buff_to_hex_nodelimer(tx_to_blob(ptx.tx)));
+	//----------------------------------
     req.tx_as_hex = epee::string_tools::buff_to_hex_nodelimer(tx_to_blob(ptx.tx));
     req.do_not_relay = false;
     req.do_sanity_checks = true;
