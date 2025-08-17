@@ -9609,7 +9609,7 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 //-----------------------------------------------
 void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfers, uint64_t unlock_time, uint64_t fee, std::vector<pending_tx>& ptx_vector)
 {
-    LOG_PRINT_L2("Entered sweep_genesis_outputs function. Re-generating genesis public key from wallet data.");
+    LOG_PRINT_L2("Entered sweep_genesis_outputs function. Processing genesis block reward.");
     using namespace cryptonote;
 
     if (selected_transfers.empty()) {
@@ -9629,19 +9629,22 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     if (found_money < fee) {
         throw tools::error::not_enough_unlocked_money(__func__, found_money, 0, fee);
     }
-
+    
+    // Нова транзакція
     cryptonote::transaction tx_new;
     tx_new.version = 2;
     tx_new.unlock_time = unlock_time;
     
+    // Генерація ключової пари для транзакції
     crypto::public_key tx_pub_key;
     crypto::secret_key tx_key;
     crypto::generate_keys(tx_pub_key, tx_key);
 
+    // Додаємо публічний ключ до поля 'extra'
     add_tx_pub_key_to_extra(tx_new, tx_pub_key);
-
-    const transfer_details& td = m_transfers[selected_transfers[0]];
     
+    // Обробка першого (і єдиного) входу
+    const transfer_details& td = m_transfers[selected_transfers[0]];
     LOG_PRINT_L2("Accessing transfer details from index: " << selected_transfers[0]);
 
     crypto::public_key output_public_key;
@@ -9657,39 +9660,44 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
         throw tools::error::wallet_internal_error(__func__, "Failed to derive output public key.");
     }
 
-    // Створення входу транзакції
+    // Створення входу транзакції (txin)
     cryptonote::txin_to_key tx_in;
     tx_in.amount = td.m_amount;
     
-    // ВИПРАВЛЕНО: Використовуємо функцію, надану в коді користувача
+    // Генеруємо key_image
     crypto::key_image generated_k_image;
     crypto::generate_key_image(output_public_key, m_account.get_keys().m_spend_secret_key, generated_k_image);
     tx_in.k_image = generated_k_image;
     
-    // Виправлений рядок
+    // Логування згенерованого key_image для перевірки
+    LOG_PRINT_L2("Generated key image for genesis output: " << generated_k_image);
+
+    // Додаємо key_offsets. У даному випадку це 0, бо це єдиний вихід
     tx_in.key_offsets.push_back(0);
     tx_new.vin.push_back(tx_in);
 
+    // Створення виходу транзакції (txout)
     cryptonote::txout_to_tagged_key tx_out_to_tagged_key;
-	crypto::key_derivation new_derivation;
-	if (!crypto::generate_key_derivation(tx_pub_key, m_account.get_keys().m_view_secret_key, new_derivation)) {
-    	throw tools::error::wallet_internal_error(__func__, "Failed to derive new key derivation");
-	}
+    crypto::key_derivation new_derivation;
+    if (!crypto::generate_key_derivation(tx_pub_key, m_account.get_keys().m_view_secret_key, new_derivation)) {
+        throw tools::error::wallet_internal_error(__func__, "Failed to derive new key derivation");
+    }
 
-	crypto::public_key derived_key;
-	if (!crypto::derive_public_key(new_derivation, 0, m_account.get_keys().m_account_address.m_spend_public_key, derived_key)) {
-    	throw tools::error::wallet_internal_error(__func__, "Failed to derive new public key");
-	}
-	tx_out_to_tagged_key.key = derived_key;
-	// Додаємо view_tag, який є обов'язковим для транзакції v2
-	crypto::hash hash;
-	crypto::cn_fast_hash(&tx_pub_key, sizeof(tx_pub_key), hash);
-	tx_out_to_tagged_key.view_tag = *reinterpret_cast<const crypto::view_tag*>(reinterpret_cast<const unsigned char*>(&hash));
+    crypto::public_key derived_key;
+    if (!crypto::derive_public_key(new_derivation, 0, m_account.get_keys().m_account_address.m_spend_public_key, derived_key)) {
+        throw tools::error::wallet_internal_error(__func__, "Failed to derive new public key");
+    }
+    tx_out_to_tagged_key.key = derived_key;
+    
+    // Правильний спосіб обчислення і присвоєння view_tag
+    crypto::hash hash;
+    crypto::cn_fast_hash(&tx_pub_key, sizeof(tx_pub_key), hash);
+    tx_out_to_tagged_key.view_tag = hash.data[0];
 
-	cryptonote::tx_out out;
-	out.amount = found_money - fee;
-	out.target = tx_out_to_tagged_key;
-	tx_new.vout.push_back(out);
+    cryptonote::tx_out out;
+    out.amount = found_money - fee;
+    out.target = tx_out_to_tagged_key;
+    tx_new.vout.push_back(out);
     
     // Підпис транзакції
     crypto::hash tx_prefix_hash = get_transaction_prefix_hash(tx_new);
