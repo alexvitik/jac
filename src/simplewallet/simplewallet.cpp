@@ -5511,7 +5511,7 @@ bool simple_wallet::sweep_genesis(const std::vector<std::string>& args)
     {
         m_wallet->commit_tx(ptx);
     }
-    catch (const tools::error::daemon_rpc_send_tx_failed &e)
+    catch (const tools::error::tx_not_constructed& e)
     {
         fail_msg_writer() << "Failed to commit transaction: " << e.what();
         return false;
