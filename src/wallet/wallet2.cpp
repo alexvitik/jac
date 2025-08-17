@@ -9630,7 +9630,6 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
         throw tools::error::not_enough_unlocked_money(__func__, found_money, 0, fee);
     }
     
-    // Нова транзакція
     cryptonote::transaction tx_new;
     tx_new.version = 2;
     tx_new.unlock_time = unlock_time;
@@ -9642,9 +9641,6 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     
     const transfer_details& td = m_transfers[selected_transfers[0]];
     
-    // **********************************************
-    // КЛЮЧОВЕ ВИПРАВЛЕННЯ: НЕ ПЕРЕОБЧИСЛЮЄМО KEY_IMAGE, А ВИКОРИСТОВУЄМО ЗБЕРЕЖЕНИЙ
-    // **********************************************
     cryptonote::txin_to_key tx_in;
     tx_in.amount = td.m_amount;
     tx_in.k_image = td.m_key_image; 
@@ -9655,20 +9651,28 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     tx_new.vin.push_back(tx_in);
 
     // **********************************************
-    // ВАЖЛИВО: Для підпису все ще потрібен output_public_key, тому ми повинні його
-    // обчислити, але іншим, правильним способом, використовуючи дані з генезис-блоку.
-    // Ми не можемо просто взяти його з m_transfers, бо він там не зберігається.
-    // Використаємо правильний метод, як у `process_genesis_block_reward`.
+    // ВИПРАВЛЕННЯ: Правильний спосіб отримати output_public_key
     // **********************************************
     crypto::public_key output_public_key;
     const cryptonote::tx_out& gen_out = td.m_tx.vout[td.m_internal_output_index];
-    const cryptonote::txout_to_tagged_key& gen_tagged_key = gen_out.target;
     
-    if (!crypto::derive_public_key(m_account.get_keys().m_view_secret_key, 0, gen_tagged_key.key, output_public_key)) {
+    // Використовуємо boost::get для безпечного отримання елемента з variant
+    const cryptonote::txout_to_tagged_key* gen_tagged_key_ptr = boost::get<const cryptonote::txout_to_tagged_key>(&gen_out.target);
+    if (!gen_tagged_key_ptr) {
+        throw tools::error::wallet_internal_error(__func__, "Genesis output target is not of expected type txout_to_tagged_key.");
+    }
+    
+    const cryptonote::txout_to_tagged_key& gen_tagged_key = *gen_tagged_key_ptr;
+
+    crypto::key_derivation key_derivation_from_secret;
+    if (!crypto::generate_key_derivation(gen_tagged_key.key, m_account.get_keys().m_view_secret_key, key_derivation_from_secret)) {
+        throw tools::error::wallet_internal_error(__func__, "Failed to derive key derivation from tagged key.");
+    }
+    
+    if (!crypto::derive_public_key(key_derivation_from_secret, td.m_internal_output_index, m_account.get_keys().m_account_address.m_spend_public_key, output_public_key)) {
         throw tools::error::wallet_internal_error(__func__, "Failed to derive output public key from genesis tx.");
     }
     
-    // Логування
     LOG_PRINT_L2("Derived output public key from genesis block: " << output_public_key);
     
     // Створення виходу транзакції (txout)
@@ -9688,7 +9692,6 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     crypto::cn_fast_hash(&tx_pub_key, sizeof(tx_pub_key), hash);
     tx_out_to_tagged_key.view_tag = *reinterpret_cast<const crypto::view_tag*>(reinterpret_cast<const unsigned char*>(&hash));
 
-    // Логування суми та комісії
     LOG_PRINT_L2("Attempting to sweep amount: " << cryptonote::print_money(found_money - fee) << ", with fee: " << cryptonote::print_money(fee));
 
     cryptonote::tx_out out;
@@ -9696,13 +9699,12 @@ void wallet2::sweep_genesis_outputs(const std::vector<size_t>& selected_transfer
     out.target = tx_out_to_tagged_key;
     tx_new.vout.push_back(out);
     
-    // Підпис транзакції
     crypto::hash tx_prefix_hash = get_transaction_prefix_hash(tx_new);
     std::vector<crypto::signature> signatures(1);
     
     crypto::generate_signature(
         tx_prefix_hash,
-        output_public_key, // Використовуємо правильно обчислений public key
+        output_public_key,
         m_account.get_keys().m_spend_secret_key,
         signatures[0]
     );
